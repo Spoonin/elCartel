@@ -1,7 +1,5 @@
 open Nact
 
-let system = start()
-
 type user = {
     id: string,
     name: string

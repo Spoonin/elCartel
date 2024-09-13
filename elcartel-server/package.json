@@ -12,8 +12,8 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@rescript/core": "^1.5.2",
+    "@rescript/core": "1.6.0",
     "nact": "^7.6.2",
-    "rescript": "^11.1.3"
+    "rescript": "11.1.4"
   }
 }
