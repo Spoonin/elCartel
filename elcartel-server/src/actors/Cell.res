@@ -1,28 +1,56 @@
 open Nact
+open Glob
+open Casa
 
-let system = start()
+type msg = 
+| BuildCasa
+| BuildStorage
+| BuildEvedamiaField
+| BuildMoxaField
+| BuildMoxalinLab
+| BuildAirport
+// | DestroyCasa
+// | DestroyStorage
+// | DestroyEvedamiaField
+// | DestroyMoxaField
+// | DestroyMoxalinLab
+// | DestroyAirport
 
-type rec msgType = Msg(actorRef<msgType>, string)
+let cellSize = 10
 
-let wait = (timeout) => Js.Promise.make((~resolve, ~reject as _) => {
-  Js.Global.setTimeout(resolve, timeout)->ignore;
-})
+type cellId = CellId(string)
 
-let ping: actorRef<msgType> = spawnStateless(~name="ping", system, async (Msg(sender, msg), ctx) => {
-  Js.log(msg)
-  await wait(100)
-  sender->dispatch(Msg(ctx.self, ctx.name))
-})
 
-let pong: actorRef<msgType> = spawnStateless(~name="pong", system, async (Msg(sender, msg), ctx) => {
-  Js.log(msg)
-  await wait(100)
-  sender->dispatch(Msg(ctx.self, ctx.name))
-})
+type cellState = {
+  id: cellId,
+  origin: position,
+  roadSpeedKoef: float,
+  paramilitaryProbability: float,
+  paramilitaryQuantity: int,
+  moxaProductivity: float,
+  evedamiaProductivity: float,
+  ownPlayer?: option<Nact.actorRef<Player.msg>>,
+}
 
-ping->dispatch(Msg(pong, "hello"))
+type cellFacilities = {
+  casa?: actorRef<casaMsg>,
+  // storage?: actorRef<storageMsg>,
+  // evedamiaField?: actorRef<evedamiaFieldMsg>,
+  // moxaField?: actorRef<moxaFieldMsg>,
+  // moxalinLab?: actorRef<moxalinLabMsg>,
+  // airport?: actorRef<airportMsg>,
+}
 
-Js.Global.setTimeout(() => {
-  Js.log("STOP")
-  stop(system)
-}, 1000)->ignore
+let validate = (sender, owner) => sender === owner
+
+let make = (game, cellInitState: cellState) => spawn(~name=String.make(cellInitState.id), game, async (state: cellState, (sender, msg), _) =>
+  switch msg {
+  | BuildCasa => state
+  | BuildStorage => state
+  | BuildEvedamiaField => state
+  | BuildMoxaField => state
+  | BuildMoxalinLab => state
+  | BuildAirport => state
+  },
+  _ => { ...cellInitState, ownPlayer: None },
+)
