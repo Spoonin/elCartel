@@ -6,7 +6,7 @@ type msg =
 | End
 
 type gameState = {
-    cellsMap: array<array<Cell.cell>>,
+    cellsMap: array<array<actorRef<Cell.msg>>>,
     players: array<actorRef<Player.msg>>
 }
 

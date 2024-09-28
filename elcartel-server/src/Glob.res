@@ -1,5 +1,3 @@
-open Nact
-
 type user = {
     id: string,
     name: string
@@ -49,3 +47,5 @@ let startBuildProcess = (updateBuildProcess: (float) => unit, buildTime, ~stages
     }
     loop(0.0)
 }
+
+let timeout = (cb, time) => Js.Global.setTimeout(cb, time)->ignore

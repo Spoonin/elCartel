@@ -10,14 +10,15 @@ let moxalinCapacity = Moxalin(1000)
 
 type actionStop = Loading
 
-type routePoint = RoutePoint(cellId, option<actionStop>)
+type routePoint = RoutePoint(cell, option<actionStop>)
 
 type msg = 
 | ...receiveResourcesMsg
 | UnloadResources
 | CirculateRoute(array<routePoint>)
 | MoveTo(routePoint)
-| BeingAttacked
+| UpdateRoute(array<routePoint>)
+| StopForLoading(float)
 
 type resource = 
     | Lumeros(lumeros)
@@ -27,41 +28,80 @@ type resource =
 type truck = {
     id: truckId,
     load?: option<resource>,
-    position: cellId,
-    nextCell?: option<cellId>,
+    position: cell,
     route?: option<array<routePoint>>,
     updatedRoute?: option<array<routePoint>>,
     isCirculating: bool,
-    isUnderAttack: bool,
+    isLoading: bool,
 }
 
-let startCirculateRouteProcess = (game, , buildTime, ~stagesCount=10) => {
-    let rec loop = (prevProcess: float) => {
-        if prevProcess < 1.0 {
-        Js.Global.setTimeout(() => loop(prevProcess +. Belt.Int.toFloat(1/stagesCount)), buildTime / stagesCount)->ignore
-        updateBuildProcess(prevProcess)
-        } else {
-            updateBuildProcess(1.0)
-        }
-    }
-    loop(0.0)
-}
-
-let make = (game, patron, truckInitState: truck) => spawn(~name=String.make(truckInitState.id), patron, async (state: truck, msg, _) =>
+let make = (patron, truckInitState: truck) => spawn(~name=String.make(truckInitState.id), patron, async (state: truck, msg, _) =>
     switch msg {
     | CirculateRoute(route) => {
-        { 
-         ...state,
-         route: Some(route), 
-         isCirculating: true 
+        let curStep = Option.getExn(Array.findIndexOpt(route, (RoutePoint(c, _)) => c === state.position), "Truck is not in the route")
+        let beginningCell = Option.getExn(route->Array.get(0), "Route is empty")
+
+        let RoutePoint(nextCell, stopReason) = route->Option.getOr(Array.get(curStep + 1), beginningCell)
+        nextCell->dispatch(
+            switch stopReason {
+            | None => {
+                TruckVisitPassBy(Reply(movingTime => movingTime->timeout(() => ctx.self->dispatch(MoveTo(state.nextCell)))))
+                {
+                    ...state,
+                    route: Some(route),
+                    isCirculating: true
+                }
+            }
+            | Some(_) => {
+                TruckVisitWithStop(Reply(stopTime => stopTime->timeout(() => ctx.self->dispatch(StopForLoading(stopTime)))))
+                {
+                    ...state,
+                    route: Some(route),
+                    isCirculating: false
+                }
+            }
+            }
+        )
+    }
+    | UnloadResources => {
+        switch state.load {
+        | Some(Lumeros(l)) => {
+            state.position->dispatch(ReceiveLumeros(l))
+            { ...state, load: None }
+        }
+        | Some(Evedamia(e)) => {
+            state.position->dispatch(ReceiveEvedamia(e))
+            { ...state, load: None }
+        }
+        | Some(Moxalin(m)) => {
+            state.position->dispatch(ReceiveMoxalin(m))
+            { ...state, load: None }
+        }
         }
     }
-    | UnloadResources => failwith("TODO")
-    | ReceiveLumeros(_) => failwith("TODO")
-    | ReceiveEvedamia(_) => failwith("TODO")
-    | ReceiveMoxalin(_) => failwith("TODO")
-    | BeingAttacked => failwith("TODO")
+    | ReceiveLumeros(lumeros) => {
+        { 
+         ...state,
+         load: Some(Lumeros(lumeros)) 
+        }
+    }
+    | ReceiveEvedamia(evedamia) => 
+        { 
+         ...state,
+         load: Some(Evedamia(evedamia)) 
+        }
+    | ReceiveMoxalin(moxalin) => 
+        { 
+         ...state,
+         load: Some(Moxalin(moxalin)) 
+        }
     | MoveTo(_) => failwith("TODO")
+    | UpdateRoute(route) => {
+        { 
+         ...state,
+         updatedRoute: Some(route) 
+        }
+    }
     }, 
     _ => truckInitState
 )

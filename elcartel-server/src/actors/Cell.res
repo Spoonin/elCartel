@@ -1,9 +1,10 @@
 open Nact
+open Glob
 
 type msg = 
 | BuildCasa
-| TruckVisitPassBy
-| TruckVisitWithStop
+| TruckVisitPassBy(reply<float>)
+| TruckVisitWithStop(reply<float>)
 | BuildEvedamiaField
 // | BuildStorage
 // | BuildMoxaField
@@ -15,6 +16,8 @@ type msg =
 // | DestroyMoxaField
 // | DestroyMoxalinLab
 // | DestroyAirport
+
+type cell = actorRef<msg>
 
 type cellId = CellId((int, int))
 
@@ -37,16 +40,23 @@ type cellState = {
   roadQuality: float,
 }
 
-type cell = Cell(cellState, actorRef<msg>)
+let defaultPassByTime = 10.0 *. Float.fromInt(second)
 
 let validate = (sender, owner) => sender === owner
 
-let make = (game, cellInitState: cellState) => spawn(~name=String.make(cellInitState.id), game, async (state: cellState, (sender, msg), _) =>
+let make = (game, cellInitState: cellState) => spawn(~name=String.make(cellInitState.id), game, async (state: cellState, msg, _) =>
   switch msg {
   | BuildCasa => state
   | BuildEvedamiaField => state
-  | TruckVisitPassBy => state
-  | TruckVisitWithStop => state
+  | TruckVisitPassBy(Reply(cb)) => {
+    cb(defaultPassByTime /. state.roadQuality)
+    state
+  }
+  | TruckVisitWithStop(Reply(cb)) => {
+    switch state.facility {
+    | Some(Casa(casa)) => casa->dispatch(Casa.Build)
+    | Some(EvedamiaField(evedamiaField)) => evedamiaField->dispatch(EvedamiaField.Build)
+  }
   
   // | BuildStorage => state
   // | BuildMoxaField => state
