@@ -19,10 +19,13 @@ type reply<'a> = Reply('a => unit)
 
 type receiveLumerosMsg = ReceiveLumeros(lumeros)
 
-type resourcesExchangeMsg =
+type receiveResourcesMsg = 
     | ...receiveLumerosMsg
     | ReceiveEvedamia(evedamia)
     | ReceiveMoxalin(moxalin)
+
+type resourcesExchangeMsg =
+    | ...receiveResourcesMsg
     | GiveLumeros(lumeros, reply<result<lumeros, error>>)
     | GiveEvedamia(evedamia, reply<result<evedamia, error>>)
     | GiveMoxalin(moxalin, reply<result<moxalin, error>>)

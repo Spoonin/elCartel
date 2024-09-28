@@ -8,7 +8,7 @@ type state = {
     buildProcess: float,
 }
 
-type casaMsg = 
+type msg = 
   | Build
   | ...updateBuildProcessMsg
   | ...receiveLumerosMsg

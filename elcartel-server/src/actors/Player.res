@@ -2,7 +2,7 @@ open Nact
 open Glob
 
 
-type insufficient = InsufficientLumerosError | InsufficientEvedamiaError | InsufficientMoxalinError
+type insufficientError = InsufficientLumerosError | InsufficientEvedamiaError | InsufficientMoxalinError
 type didntPay = LumerosNotPaidError | EvedamiaNotProvidedError | MoxalinNotProvidedError
 
 type resources = { 

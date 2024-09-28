@@ -5,8 +5,8 @@ type msg =
 | Start({users: array<user>})
 | End
 
-type rec msgType = Msg(actorRef<msgType>, msg)
-
-type game = {
-    cells: array<actorRef<Cell.msg>>
+type gameState = {
+    cellsMap: array<array<Cell.cell>>,
+    players: array<actorRef<Player.msg>>
 }
+
