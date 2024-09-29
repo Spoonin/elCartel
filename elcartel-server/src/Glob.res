@@ -3,6 +3,16 @@ type user = {
     name: string
 }
 
+type playerId = PlayerId(string)
+
+type currentSpeed = Speed(float)
+
+type moveDirection = 
+    | Up
+    | Down
+    | Left
+    | Right
+
 type error = 
 | NotEnoughResources
 
@@ -14,19 +24,6 @@ type duration = Duration(int)
 type position = {x: int, y: int}
 
 type reply<'a> = Reply('a => unit)
-
-type receiveLumerosMsg = ReceiveLumeros(lumeros)
-
-type receiveResourcesMsg = 
-    | ...receiveLumerosMsg
-    | ReceiveEvedamia(evedamia)
-    | ReceiveMoxalin(moxalin)
-
-type resourcesExchangeMsg =
-    | ...receiveResourcesMsg
-    | GiveLumeros(lumeros, reply<result<lumeros, error>>)
-    | GiveEvedamia(evedamia, reply<result<evedamia, error>>)
-    | GiveMoxalin(moxalin, reply<result<moxalin, error>>)
 
 let runPreparation = (duration, cb: () => unit) => {
     let Duration(x) = duration

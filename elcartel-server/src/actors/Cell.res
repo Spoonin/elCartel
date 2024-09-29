@@ -1,67 +1,57 @@
 open Nact
 open Glob
+open Messages 
 
-type msg = 
-| BuildCasa
-| TruckVisitPassBy(reply<float>)
-| TruckVisitWithStop(reply<float>)
-| BuildEvedamiaField
-// | BuildStorage
-// | BuildMoxaField
-// | BuildMoxalinLab
-// | BuildAirport
-// | DestroyCasa
-// | DestroyStorage
-// | DestroyEvedamiaField
-// | DestroyMoxaField
-// | DestroyMoxalinLab
-// | DestroyAirport
+type msg = cellMsg
 
 type cell = actorRef<msg>
 
 type cellId = CellId((int, int))
 
-type cellFacility = 
-  | Casa(actorRef<Casa.msg>)
-  | EvedamiaField(actorRef<EvedamiaField.msg>)
-  // | MoxaField(actorRef<moxaFieldMsg>)
-  // | MoxalinLab(actorRef<moxalinLabMsg>)
-  // | Airport(actorRef<airportMsg>)
-  // | Storage(actorRef<storageMsg>)
-
 type cellState = {
   id: cellId,
-  // paramilitaryProbability: float,
-  // paramilitaryQuantity: int,
   moxaProductivity: float,
   evedamiaProductivity: float,
-  ownPlayer?: option<Nact.actorRef<Player.msg>>,
-  facility?: option<cellFacility>,
+  ownPlayer: option<Nact.actorRef<Player.msg>>,
+  facility: option<facility>,
   roadQuality: float,
 }
 
-let defaultPassByTime = 10.0 *. Float.fromInt(second)
+let defaultPassTruTime = 10.0 *. Float.fromInt(second)
 
 let validate = (sender, owner) => sender === owner
+
+let passThruTime = (state) => defaultPassTruTime /. state.roadQuality
 
 let make = (game, cellInitState: cellState) => spawn(~name=String.make(cellInitState.id), game, async (state: cellState, msg, _) =>
   switch msg {
   | BuildCasa => state
   | BuildEvedamiaField => state
-  | TruckVisitPassBy(Reply(cb)) => {
-    cb(defaultPassByTime /. state.roadQuality)
+  | VehicleVisitPassThru(Reply(cb)) => {
+    cb(state->passThruTime)
     state
   }
-  | TruckVisitWithStop(Reply(cb)) => {
+  | VehicleVisitWithStop(Reply(cb)) => {
     switch state.facility {
-    | Some(Casa(casa)) => casa->dispatch(Casa.Build)
-    | Some(EvedamiaField(evedamiaField)) => evedamiaField->dispatch(EvedamiaField.Build)
+    | Some(EvedamiaField(evedamiaField)) => cb({
+        passThruTime: state->passThruTime,
+        reason: LoadResources(EvedamiaField(evedamiaField)),
+        stopTime: EvedamiaField.stopTime,
+      })
+    | None =>
+      cb({
+        passThruTime: state->passThruTime,
+        reason: NoFacility,
+        stopTime: 0.0,
+      })
+    | Some(Casa(casa)) => cb({
+        passThruTime: state->passThruTime,
+        reason: UnloadResources(Casa(casa)),
+        stopTime: Casa.unloadStopTime,
+      })
+    }
+    state
   }
-  
-  // | BuildStorage => state
-  // | BuildMoxaField => state
-  // | BuildMoxalinLab => state
-  // | BuildAirport => state
   },
   _ => { ...cellInitState, ownPlayer: None },
 )

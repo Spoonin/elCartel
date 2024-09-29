@@ -11,15 +11,7 @@ type resources = {
     lumeros: lumeros,
 }
 
-type playerId = PlayerId(string)
-
-type msg = 
-| ...resourcesExchangeMsg
-| LumerosNotPaid(lumeros, playerId)
-| EvedamiaNotProvided(evedamia, playerId)
-| MoxalinNotProvided(moxalin, playerId)
-| SicarioBetrayed(string)
-
+type msg = Messages.playerMsg
 
 type player = { playerId, resources, debts: Map.t<playerId, resources>}
 
@@ -78,7 +70,7 @@ let showErrorToClientSE = (error) => {
     Js.log(error) // TODO: send error to client
 }
 
-let make = (game, PlayerId(pId)) => spawn(~name=pId, game, async (state, msg, _) =>
+let make = (game, PlayerId(pId)) => spawn(~name=pId, game, async (state, msg:msg, _) =>
     switch msg {
         | ReceiveLumeros(l) => state->addLumeros(l)
         | ReceiveEvedamia(e) => state->addEvedamia(e)

@@ -41,13 +41,13 @@ let recallPayDay = (state, patron: actorRef<Player.msg>, self) => {
 
 let considerBetrayal = (state, patron, self) => {
     if Js.Math.random() *. 1.0 -. state.hapinness > betrayThreshold {
-        patron->dispatch(Player.SicarioBetrayed(state.name))
+        patron->dispatch(Messages.SicarioBetrayed(state.name))
         stop(self)
     }
     state
 }
 
-let make = (patron: actorRef<Player.msg>, name, originCellId) => {
+let make = (patron: actorRef<Messages.playerMsg>, name, originCellId) => {
     let self = spawn(~name=name, patron, async (state: sicario, msg, ctx) => 
     switch msg {
     | RecallPayDay => {

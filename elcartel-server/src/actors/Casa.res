@@ -8,12 +8,11 @@ type state = {
     buildProcess: float,
 }
 
-type msg = 
-  | Build
-  | ...updateBuildProcessMsg
-  | ...receiveLumerosMsg
+type msg = Messages.casaMsg
+  
+let unloadStopTime = 20.0 *. Float.fromInt(second)
 
-let make = (ownPlayer, cellId: string) => spawn(~name=`casa@${cellId}`, ownPlayer, async (state, msg, ctx) =>
+let make = (ownPlayer: actorRef<Messages.playerMsg>, cellId: string) => spawn(~name=`casa@${cellId}`, ownPlayer, async (state, msg:msg, ctx) =>
   switch msg {
   | Build => {
       ownPlayer->dispatch(
