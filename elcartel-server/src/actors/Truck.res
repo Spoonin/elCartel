@@ -1,7 +1,5 @@
 open Nact
 open Glob
-open Messages
-open Cell
 
 type truckId = TruckId(string)
 
@@ -14,98 +12,134 @@ type resource =
     | Evedamia(evedamia)
     | Moxalin(moxalin)
 
-type movement = 
-    | Movement(moveDirection, currentSpeed)
+type movement = Movement(Messages.cellId, Messages.cellId) // TODO: add speed
 
 type truck = {
     id: truckId,
     load: option<resource>,
-    position: cell,
-    route: option<array<routePoint>>,
-    movement,
+    position: Messages.cell,
+    route: option<array<Messages.cell>>,
+    movement: option<movement>,
     isLoading: bool,
 }
 
-let handleVehicleStop = (self, state) => {
-    (options: vehicleStopOptions,) => {
-        let { passThruTime, reason, stopTime } = options
+let defaultSpeedCellsPerSec = 1.0 /. Float.fromInt(second)
 
-        switch reason {
-        | LoadResources(facility) =>
+let handleVisitReply = (self, state) => {
+    (stopReason: option<Messages.reason>) => {
+        switch stopReason {
+        | Some(LoadResources(facility)) =>
             switch facility {                
-            | EvedamiaField(evedamiaField) =>{
+            | EvedamiaField(evedamiaField) => {
                 evedamiaField->dispatch(Messages.TruckCanLoad(evedamiaCapacity, self))
-                self->dispatch(Drive(Up, Speed(1.0 /. passThruTime)))
             }
-            | Casa(casa) => failwith("TODO")
+            | _ => () // TODO: other facilities
             }
-        | UnloadResources(facility) => 
+        | Some(UnloadResources(facility)) => 
             switch facility {
-            | Casa(casa) =>
+            | Casa(_) =>
                 switch state.load {
                 | Some(resource) => 
                     switch resource {
-                    | Lumeros(lumeros) => self->dispatch(UnloadTo(facility))
-                    | Evedamia(evedamia) => failwith("Invalid load type: Evedamia")
-                    | Moxalin(moxalin) => failwith("Invalid load type: Evedamia")
+                    | Lumeros(_) => self->dispatch(UnloadTo(facility))
+                    | _ => () // Nothing else can casa receive
                     }
                 | None => () // Nothing to unload
-                | _ => failwith("TODO")
                 }
-            | EvedamiaField(_) => failwith("TODO")
+            | EvedamiaField(_) => () // EvedamiaField cannot unload resources
             }
-        | NoFacility => () // Do nothing
+        | None => () // Do nothing
         }
     }
 }
 
+let getCell = (route: array<Messages.cell>, cellId) => route->Array.find((Cell(id, _)) => id == cellId)
+
+let isNeibour = (cellId1: Messages.cellId, cellId2: Messages.cellId) => {
+    let dx = abs(cellId1.x - cellId2.x)
+    let dy = abs(cellId1.y - cellId2.y)
+    dx + dy <= 1
+}
+
+let getNextCell = (route: array<Messages.cell>, currentCellId) => {
+    let curStep = route->Array.findIndexOpt((Cell(cellId, _)) => currentCellId == cellId)
+    
+    switch curStep {
+    | Some(step) => {
+        let nextStep = step === Array.length(route) - 1 ? 0 : step + 1
+        route[nextStep]
+    }
+    | None => None
+  }
+}
+
+let getCellId = (cell: Messages.cell) => {
+  let Messages.Cell(id, _) = cell
+  id
+}
 
 let make = (patron, id, currentCell) => spawn(~name=String.make(id), patron, async (state: truck, msg, ctx) =>
     switch msg {
-    | StartRoute(route) => {
+    | Messages.StartRoute(route) => {
         let curStep = Option.getOr(
-          route->Array.findIndexOpt((RoutePoint(cell, _)) => cell === state.position),
+          route->Array.findIndexOpt((cell) => cell === state.position),
           0,
         )
     
-        let newCycle = curStep === Array.length(route) - 1
-    
-        let curPoint = route[curStep]
-    
-        let RoutePoint(curPosition, _) = Option.getExn(curPoint, ~message="Route is empty")
-    
-        let nextPoint = Option.getExn(
-          newCycle ? route[0] : route[curStep + 1],
-          ~message="Route is empty",
-        )
-    
-        ctx.self->dispatch(MoveTo(nextPoint))
-    
+        let Messages.Cell(startId, startActor) = Option.getExn(route[curStep], ~message="Invalid route")
+
+        let Messages.Cell(nextId,_) = Option.getExn(getNextCell(route, startId), ~message="Invalid route")
+
+        startActor->dispatch(VehicleVisit(Reply((_) => {
+            ctx.self->dispatch(DriveTo(nextId))
+        })))
+
         {
           ...state,
-          position: curPosition,
+          position: Messages.Cell(startId, startActor),
+          movement: Some(Movement(startId, nextId)),
           route: Some(route),
         }
       }
-    | MoveTo(RoutePoint(cell, isStop)) => {
-        switch isStop {
-        | true => cell->dispatch(VehicleVisitWithStop(Reply(handleVehicleStop(ctx.self, state))))
-        | false => cell->dispatch(
-            VehicleVisitPassThru(
-              Reply(
-                passThruTime => {
-                  ctx.self->dispatch(Drive(Up, Speed(1.0 /. passThruTime)))
-                },
-              ),
-            ),
-          )
-        }
+    | SwitchCellTo(toCellId) => {
+      let Messages.Cell(curId,_) = state.position
+    
+      if(toCellId == curId) {
+          if(isNeibour(curId, toCellId)) {
+            let route = Option.getExn(state.route, ~message="No route set")
+              let cell = getCell(route, toCellId)
+              
+              switch cell {
+                | Some(Cell(cellId, cellActor)) => {
+                  cellActor->dispatch(VehicleVisit(Reply(handleVisitReply(ctx.self, state))))
+                  Option.map(
+                    getNextCell(route, cellId), 
+                    (cell) => ctx.self->dispatch(DriveTo(getCellId(cell)))
+                  )->ignore // TODO: double check this
+
+                  {
+                    ...state,
+                    position: Cell(cellId, cellActor),
+                  }
+                }
+                | None => failwith("Cell is not in the current route")
+              }
+          } else {
+            failwith("Cannot jump to a non-neighbour cell")
+          }
+      } else {
         state
-      }
-    | Drive(direction, speed) => {
+      }       
+    }
+    | DriveTo(toCellId) => {
+      let Messages.Cell(fromCellId,_) = state.position
+      timeout(()=>ctx.self->dispatch(SwitchCellTo(toCellId)), defaultSpeedCellsPerSec)
+      
+      {
         ...state,
-        movement: Movement(direction, speed),
+        movement: Some(Movement(fromCellId, toCellId)),
       }
+    }
     | ReceiveLumeros(lumeros) => {
         ...state,
         load: Some(Lumeros(lumeros)),
@@ -118,13 +152,6 @@ let make = (patron, id, currentCell) => spawn(~name=String.make(id), patron, asy
         ...state,
         load: Some(Moxalin(moxalin)),
       }
-    | Stop => {
-        let Movement(currentDirection,_) = state.movement
-        
-        { ...state,
-            movement: Movement(currentDirection, Speed(0.0)),
-        }
-    }
     | UnloadTo(_) => failwith("TODO")
     }, 
     _ => {
@@ -132,7 +159,7 @@ let make = (patron, id, currentCell) => spawn(~name=String.make(id), patron, asy
         load: None,
         position: currentCell,
         route: None,
-        movement: Movement(Up, Speed(0.0)),
+        movement: None,
         isLoading: false,
     }
 )

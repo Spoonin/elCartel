@@ -11,7 +11,7 @@ let betrayThreshold = 0.7
 type sicario = {
     name: string,
     salariesCount: int,
-    guardingCellId: option<cellId>,
+    guardingCell: option<cell>,
     hapinness: float,
     dead: bool,
 }
@@ -47,7 +47,7 @@ let considerBetrayal = (state, patron, self) => {
     state
 }
 
-let make = (patron: actorRef<Messages.playerMsg>, name, originCellId) => {
+let make = (patron: actorRef<Messages.playerMsg>, name, originCell) => {
     let self = spawn(~name=name, patron, async (state: sicario, msg, ctx) => 
     switch msg {
     | RecallPayDay => {
@@ -81,7 +81,7 @@ let make = (patron: actorRef<Messages.playerMsg>, name, originCellId) => {
     }},
      _ => {
         name,
-        guardingCellId: Some(originCellId),
+        guardingCell: Some(originCell),
         salariesCount: 0,
         hapinness: 1.0,
         dead: false

@@ -25,7 +25,7 @@ type playerMsg =
 | MoxalinNotProvided(moxalin, playerId)
 | SicarioBetrayed(string)
 
-
+type cellId = { x:int, y:int }
 
 type casaMsg = 
 | ...buildMsg
@@ -38,29 +38,21 @@ type rec facility =
 and reason = 
 | UnloadResources(facility)
 | LoadResources(facility)
-| NoFacility
 
-and vehicleStopOptions = {
-    passThruTime: float,
-    stopTime: float,
-    reason
-}
 
 and cellMsg = 
 | BuildCasa
-| VehicleVisitPassThru(reply<float>)
-| VehicleVisitWithStop(reply<vehicleStopOptions>)
+| VehicleVisit(reply<option<reason>>)
 | BuildEvedamiaField
 
-and routePoint = RoutePoint(actorRef<cellMsg>, bool)
+and cell = Cell(cellId, actorRef<cellMsg>)
 
 and truckMsg = 
 | ...receiveResourcesMsg
 | UnloadTo(facility)
-| StartRoute(array<routePoint>)
-| MoveTo(routePoint)
-| Drive(moveDirection, currentSpeed)
-| Stop
+| SwitchCellTo(cellId)
+| StartRoute(array<cell>) // TODO: add cells with explicit stops
+| DriveTo(cellId) // TODO: add variable speed
 
 and evedamiaFieldMsg =
 | ...buildMsg

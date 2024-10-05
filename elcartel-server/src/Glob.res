@@ -6,6 +6,7 @@ type user = {
 type playerId = PlayerId(string)
 
 type currentSpeed = Speed(float)
+type time = Time(float)
 
 type moveDirection = 
     | Up
@@ -45,4 +46,4 @@ let startBuildProcess = (updateBuildProcess: (float) => unit, buildTime, ~stages
     loop(0.0)
 }
 
-let timeout = (cb, time) => Js.Global.setTimeout(cb, time)->ignore
+let timeout = (cb, time) => Js.Global.setTimeoutFloat(cb, time)->ignore
