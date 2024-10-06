@@ -8,6 +8,7 @@ Client is planned to be implemented on [Flutter](https://flutter.dev/)
 
 License: MIT
 
+----
 MIT License
 
 Copyright (c) 2024 Spoonin
