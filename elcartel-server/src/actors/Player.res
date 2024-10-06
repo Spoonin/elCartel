@@ -13,7 +13,7 @@ type resources = {
 
 type msg = Messages.playerMsg
 
-type player = { playerId, resources, debts: Map.t<playerId, resources>}
+type playerState = {resources, debts: Map.t<playerId, resources>}
 
 let validateLumerosUpd = ({resources}, Lumeros(x)) => {
     let Lumeros(cur) = resources.lumeros
@@ -165,7 +165,6 @@ let make = (game, PlayerId(pId)) => spawn(~name=pId, game, async (state, msg:msg
         }
     },
     _ => {
-        playerId: PlayerId(pId),
         resources: {
             lumeros: Lumeros(10000),
             evedamia: Evedamia(0),

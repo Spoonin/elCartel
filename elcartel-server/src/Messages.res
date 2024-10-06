@@ -31,6 +31,8 @@ type casaMsg =
 | ...buildMsg
 | ReceiveLumeros(lumeros)
 
+type player = Player(playerId, actorRef<playerMsg>)
+
 type rec facility = 
 | Casa(actorRef<casaMsg>)
 | EvedamiaField(actorRef<evedamiaFieldMsg>)
@@ -41,9 +43,9 @@ and reason =
 
 
 and cellMsg = 
-| BuildCasa
+| BuildCasa(playerId)
+| BuildEvedamiaField(playerId)
 | VehicleVisit(reply<option<reason>>)
-| BuildEvedamiaField
 
 and cell = Cell(cellId, actorRef<cellMsg>)
 

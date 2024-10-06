@@ -12,7 +12,7 @@ type msg = Messages.casaMsg
   
 let unloadStopTime = 20.0 *. Float.fromInt(second)
 
-let make = (ownPlayer: actorRef<Messages.playerMsg>, cellId: string) => spawn(~name=`casa@${cellId}`, ownPlayer, async (state, msg:msg, ctx) =>
+let make = (ownPlayer: actorRef<Messages.playerMsg>, cellName: string) => spawn(~name=`casa@${cellName}`, ownPlayer, async (state, msg:msg, ctx) =>
   switch msg {
   | Build => {
       ownPlayer->dispatch(
