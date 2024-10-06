@@ -1,7 +1,7 @@
 ### El Cartel ###
 Study pet-project in a form of a game.
 
-Started as an idea to build an economics flavoured RTS with backend powered by an [actor model](https://en.wikipedia.org/wiki/Actor_model) build in a some simple functional language.
+Started as an idea to build an economics flavoured RTS with backend powered by an [actor model](https://en.wikipedia.org/wiki/Actor_model),  based on some simple functional language.
 The choice was finally made in favour of [Rescript](https://rescript-lang.org/)
 
 Client is planned to be implemented on [Flutter](https://flutter.dev/)
