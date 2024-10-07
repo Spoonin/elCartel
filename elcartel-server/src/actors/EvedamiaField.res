@@ -24,7 +24,7 @@ let make = (cell, ownPlayer: actorRef<Messages.playerMsg>, evedamiaProductivity)
     switch msg {
     | Build => {
         ownPlayer->dispatch(
-        GiveLumeros(
+        #GiveLumeros(
           installationPrice,
           Reply(
             result =>
@@ -56,7 +56,7 @@ let make = (cell, ownPlayer: actorRef<Messages.playerMsg>, evedamiaProductivity)
     }
     | TruckCanLoad(howMuch, truck) => {
         let loadAmount = state.storedEvedamia > howMuch ? howMuch : state.storedEvedamia
-        truck->dispatch(ReceiveEvedamia(Evedamia(loadAmount)))
+        truck->dispatch(#ReceiveEvedamia(Evedamia(loadAmount)))
         {
             ...state,
             storedEvedamia: state.storedEvedamia - loadAmount,

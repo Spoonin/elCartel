@@ -16,7 +16,7 @@ let make = (ownPlayer: actorRef<Messages.playerMsg>, cellName: string) => spawn(
   switch msg {
   | Build => {
       ownPlayer->dispatch(
-        GiveLumeros(
+        #GiveLumeros(
           installationPrice,
           Reply(
             result =>
@@ -33,7 +33,7 @@ let make = (ownPlayer: actorRef<Messages.playerMsg>, cellName: string) => spawn(
       state
     }
   | ReceiveLumeros(lumeros) => {
-      ownPlayer->dispatch(ReceiveLumeros(lumeros))
+      ownPlayer->dispatch(#ReceiveLumeros(lumeros))
       state
     }
   | UpdateBuildingProcess(process) => { buildProcess: process }

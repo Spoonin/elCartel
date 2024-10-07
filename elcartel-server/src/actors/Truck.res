@@ -25,7 +25,17 @@ type truck = {
 
 let defaultSpeedCellsPerSec = 1.0 /. Float.fromInt(second)
 
-let handleVisitReply = (self, state) => {
+let handleExchange = (self, facility, dealer, patron)  =>(lumeros) => {
+                            self->dispatch(#UnloadTo(facility))
+                            dealer->dispatch(#GiveLumeros(lumeros, Reply((result) =>{
+                              switch result {
+                                | Ok(lumeros) => self -> dispatch(#ReceiveLumeros(lumeros))
+                                | Error(_) => patron -> dispatch(#LumerosDebtedByDealer(lumeros, "dealer"))
+                              }
+                            })))
+                        }
+
+let handleVisitReply = (self, state, patron) => {
     (stopReason: option<Messages.reason>) => {
         switch stopReason {
         | Some(LoadResources(facility)) =>
@@ -33,7 +43,8 @@ let handleVisitReply = (self, state) => {
             | EvedamiaField(evedamiaField) => {
                 evedamiaField->dispatch(Messages.TruckCanLoad(evedamiaCapacity, self))
             }
-            | _ => () // TODO: other facilities
+            | Casa(_) => () // Other facilities cannot load resources
+            | Dealer(_) => ()
             }
         | Some(UnloadResources(facility)) => 
             switch facility {
@@ -41,17 +52,39 @@ let handleVisitReply = (self, state) => {
                 switch state.load {
                 | Some(resource) => 
                     switch resource {
-                    | Lumeros(_) => self->dispatch(UnloadTo(facility))
+                    | Lumeros(_) => self->dispatch(#UnloadTo(facility))
                     | _ => () // Nothing else can casa receive
                     }
                 | None => () // Nothing to unload
                 }
             | EvedamiaField(_) => () // EvedamiaField cannot unload resources
+            | Dealer(_) => () // Dealer cannot unload resources
             }
-        | None => () // Do nothing
+        | Some(SellResources(facility)) => {
+            switch facility {
+              | Dealer(dealer) => {
+                switch state.load {
+                  | Some(resource) =>
+                    switch resource {
+                      | Lumeros(_) => () // Lumeros cannot be sold
+                      | Evedamia(evedamia) => {
+                        dealer->dispatch(#ExchangeEvedamia(evedamia, Reply(handleExchange(self, facility, dealer, patron))))
+                      }
+                      | Moxalin(moxalin) => {
+                        dealer->dispatch(#ExchangeMoxalin(moxalin, Reply(handleExchange(self, facility, dealer, patron))))
+                      }
+                    }
+                  | None => () // Nothing to sell
+                }
+              }
+              | _ => ()
+            }
+        }
+        | None => () // Nothing to sell
         }
     }
 }
+
 
 let getCell = (route: array<Messages.cell>, cellId) => route->Array.find((Cell(id, _)) => id == cellId)
 
@@ -80,7 +113,7 @@ let getCellId = (cell: Messages.cell) => {
 
 let make = (patron, id, currentCell) => spawn(~name=String.make(id), patron, async (state: truck, msg, ctx) =>
     switch msg {
-    | Messages.StartRoute(route) => {
+    | #StartRoute(route) => {
         let curStep = Option.getOr(
           route->Array.findIndexOpt((cell) => cell === state.position),
           0,
@@ -91,7 +124,7 @@ let make = (patron, id, currentCell) => spawn(~name=String.make(id), patron, asy
         let Messages.Cell(nextId,_) = Option.getExn(getNextCell(route, startId), ~message="Invalid route")
 
         startActor->dispatch(VehicleVisit(Reply((_) => {
-            ctx.self->dispatch(DriveTo(nextId))
+            ctx.self->dispatch(#DriveTo(nextId))
         })))
 
         {
@@ -101,7 +134,7 @@ let make = (patron, id, currentCell) => spawn(~name=String.make(id), patron, asy
           route: Some(route),
         }
       }
-    | SwitchCellTo(toCellId) => {
+    | #SwitchCellTo(toCellId) => {
       let Messages.Cell(curId,_) = state.position
     
       if(toCellId == curId) {
@@ -111,12 +144,12 @@ let make = (patron, id, currentCell) => spawn(~name=String.make(id), patron, asy
               
               switch cell {
                 | Some(Cell(cellId, cellActor)) => {
-                  cellActor->dispatch(VehicleVisit(Reply(handleVisitReply(ctx.self, state))))
+                  cellActor->dispatch(VehicleVisit(Reply(handleVisitReply(ctx.self, state, patron))))
                   Option.map(
                     getNextCell(route, cellId), 
-                    (cell) => ctx.self->dispatch(DriveTo(getCellId(cell)))
+                    (cell) => ctx.self->dispatch(#DriveTo(getCellId(cell)))
                   )->ignore // TODO: double check this
-
+                  Js.log(`${ctx.name} - Appeared at ${Cell.idToString(cellId)}`)
                   {
                     ...state,
                     position: Cell(cellId, cellActor),
@@ -131,28 +164,30 @@ let make = (patron, id, currentCell) => spawn(~name=String.make(id), patron, asy
         state
       }       
     }
-    | DriveTo(toCellId) => {
+    | #DriveTo(toCellId) => {
       let Messages.Cell(fromCellId,_) = state.position
-      timeout(()=>ctx.self->dispatch(SwitchCellTo(toCellId)), defaultSpeedCellsPerSec)
+      timeout(()=>ctx.self->dispatch(#SwitchCellTo(toCellId)), defaultSpeedCellsPerSec)
+
+      Js.log(`${ctx.name} - Driving from ${Cell.idToString(fromCellId)} to ${Cell.idToString(toCellId)}`)
       
       {
         ...state,
         movement: Some(Movement(fromCellId, toCellId)),
       }
     }
-    | ReceiveLumeros(lumeros) => {
+    | #ReceiveLumeros(lumeros) => {
         ...state,
         load: Some(Lumeros(lumeros)),
       }
-    | ReceiveEvedamia(evedamia) => {
+    | #ReceiveEvedamia(evedamia) => {
         ...state,
         load: Some(Evedamia(evedamia)),
       }
-    | ReceiveMoxalin(moxalin) => {
+    | #ReceiveMoxalin(moxalin) => {
         ...state,
         load: Some(Moxalin(moxalin)),
       }
-    | UnloadTo(_) => failwith("TODO")
+    | #UnloadTo(_) => failwith("TODO")
     }, 
     _ => {
         id,

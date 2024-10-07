@@ -13,7 +13,7 @@ type resources = {
 
 type msg = Messages.playerMsg
 
-type playerState = {resources, debts: Map.t<playerId, resources>}
+type playerState = {resources, debts: Map.t<playerId, resources>, dealersDepts: Map.t<string, lumeros>}
 
 let validateLumerosUpd = ({resources}, Lumeros(x)) => {
     let Lumeros(cur) = resources.lumeros
@@ -72,11 +72,11 @@ let showErrorToClientSE = (error) => {
 
 let make = (game, PlayerId(pId)) => spawn(~name=pId, game, async (state, msg:msg, _) =>
     switch msg {
-        | ReceiveLumeros(l) => state->addLumeros(l)
-        | ReceiveEvedamia(e) => state->addEvedamia(e)
-        | ReceiveMoxalin(m) => state->addMoxalin(m)
+        | #ReceiveLumeros(l) => state->addLumeros(l)
+        | #ReceiveEvedamia(e) => state->addEvedamia(e)
+        | #ReceiveMoxalin(m) => state->addMoxalin(m)
 
-        | GiveLumeros(Lumeros(l), Reply(replyTo)) => {
+        | #GiveLumeros(Lumeros(l), Reply(replyTo)) => {
             let realL = Lumeros(l * -1)
             if state->validateLumerosUpd(realL) {
                 replyTo(Ok(Lumeros(l)))
@@ -86,7 +86,7 @@ let make = (game, PlayerId(pId)) => spawn(~name=pId, game, async (state, msg:msg
                 state
             }
         }
-        | GiveEvedamia(Evedamia(e), Reply(replyTo)) => {
+        | #GiveEvedamia(Evedamia(e), Reply(replyTo)) => {
             let realE = Evedamia(e * -1)
             if state->validateEvedamiaUpd(realE) {
                 replyTo(Ok(Evedamia(e)))
@@ -97,7 +97,7 @@ let make = (game, PlayerId(pId)) => spawn(~name=pId, game, async (state, msg:msg
                 state
             }
         }
-        | GiveMoxalin(Moxalin(m), Reply(replyTo)) => {
+        | #GiveMoxalin(Moxalin(m), Reply(replyTo)) => {
             let realM = Moxalin(m * -1)
             if state->validateMoxalinUpd(realM) {
                 replyTo(Ok(Moxalin(m)))
@@ -108,7 +108,7 @@ let make = (game, PlayerId(pId)) => spawn(~name=pId, game, async (state, msg:msg
                 state
             }
         }
-        | LumerosNotPaid(Lumeros(l), playerId) => {
+        | #LumerosNotPaid(Lumeros(l), playerId) => {
             showErrorToClientSE(LumerosNotPaidError)
             switch state.debts->Map.get(playerId) {
                 | None => {
@@ -125,7 +125,23 @@ let make = (game, PlayerId(pId)) => spawn(~name=pId, game, async (state, msg:msg
                 }
             }
         }
-        | EvedamiaNotProvided(Evedamia(e), playerId) => {
+        | #LumerosDebtedByDealer(lumeros, dealerId) => {
+            switch state.dealersDepts->Map.get(dealerId) {
+                | None => {
+                    state.dealersDepts->Map.set(dealerId, lumeros)
+                    state
+                }
+                | Some(debt) => {
+                    let Lumeros(debtL) = debt
+                    let Lumeros(newDebtL) = lumeros
+                
+                    let newDebt = Lumeros(debtL + newDebtL)
+                    state.dealersDepts->Map.set(dealerId, newDebt)
+                    state
+                }
+            }
+        }
+        | #EvedamiaNotProvided(Evedamia(e), playerId) => {
             showErrorToClientSE(EvedamiaNotProvidedError)
             switch state.debts->Map.get(playerId) {
                 | None => {
@@ -142,7 +158,7 @@ let make = (game, PlayerId(pId)) => spawn(~name=pId, game, async (state, msg:msg
                 }
             }
         }
-        | MoxalinNotProvided(Moxalin(m), playerId) => {
+        | #MoxalinNotProvided(Moxalin(m), playerId) => {
             showErrorToClientSE(MoxalinNotProvidedError)
             switch state.debts->Map.get(playerId) {
                 | None => {
@@ -159,7 +175,7 @@ let make = (game, PlayerId(pId)) => spawn(~name=pId, game, async (state, msg:msg
                 }
             }
         }
-        | SicarioBetrayed(sicarioId) => {
+        | #SicarioBetrayed(sicarioId) => {
             Js.log(`Sicario ${sicarioId} betrayed`)
             state
         }
@@ -171,5 +187,6 @@ let make = (game, PlayerId(pId)) => spawn(~name=pId, game, async (state, msg:msg
             moxalin: Moxalin(0)
         },
         debts: Map.make(),
+        dealersDepts: Map.make()
     }
 )

@@ -16,6 +16,8 @@ type cellState = {
 let defaultPassTruTime = 10.0 *. Float.fromInt(second)
 
 let passThruTime = (state) => defaultPassTruTime /. state.roadQuality
+let idToString = (id: Messages.cellId) => `x#${Int.toString(id.x)}::y#${Int.toString(id.y)}`
+let toString = (Messages.Cell(id, _)) => idToString(id)
 
 let make = (game, id: Messages.cellId, cellInitState: cellState) => spawn(~name=`x#${Int.toString(id.x)}::y#${Int.toString(id.y)}`, game, async (state: cellState, msg, ctx) =>
   switch msg {
@@ -83,6 +85,7 @@ let make = (game, id: Messages.cellId, cellInitState: cellState) => spawn(~name=
     switch state.facility {
     | Some(EvedamiaField(ef)) => cb(Some(LoadResources(EvedamiaField(ef))))
     | Some(Casa(c)) => cb(Some(UnloadResources(Casa(c))))
+    | Some(Dealer(d)) => cb(Some(LoadResources(Dealer(d))))
     | None =>cb(None)
     }
     state

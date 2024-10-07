@@ -28,7 +28,7 @@ let ariphmeticHapinessDecrement = (curHapiness: float) => 1.0 -. curHapiness > 0
 0.1
 
 let recallPayDay = (state, patron: actorRef<Player.msg>, self) => {
-    patron->dispatch(GiveLumeros(salary, Reply((result) => switch result {
+    patron->dispatch(#GiveLumeros(salary, Reply((result) => switch result {
     | Ok(_) =>  self->dispatch(SalaryGiven) // Buy some tequila!
     | Error(NotEnoughResources) => self->dispatch(SalaryMissed)
     })))
@@ -41,7 +41,7 @@ let recallPayDay = (state, patron: actorRef<Player.msg>, self) => {
 
 let considerBetrayal = (state, patron, self) => {
     if Js.Math.random() *. 1.0 -. state.hapinness > betrayThreshold {
-        patron->dispatch(Messages.SicarioBetrayed(state.name))
+        patron->dispatch(#SicarioBetrayed(state.name))
         stop(self)
     }
     state
