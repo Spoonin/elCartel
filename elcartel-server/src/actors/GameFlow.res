@@ -23,6 +23,10 @@ let make = (players: array<playerId>, cellsMap: array<array<Cell.cellInitState>>
   spawn(~name=`Game${Float.toString(Math.random())}`, system, async (state: gameState, msg:msg, ctx) =>
     switch msg {
     | Start => {
+          let playersDictData: array<(string, actorRef<Messages.playerMsg>)> = state.players->Array.map((Messages.Player(PlayerId(playerId), playerActor)) => (playerId, playerActor))
+          Array.forEach(playersDictData, ((key, value)) => {
+            Game.gameState.players->Js.Dict.set(key, value)
+          })
           state
         }
         | End => {
