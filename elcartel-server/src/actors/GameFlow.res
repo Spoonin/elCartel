@@ -4,7 +4,7 @@ open Nact
 let system = start()
 
 type msg = 
-| Start
+| Start(array<(playerId, cellId)>)
 | End
 
 
@@ -19,13 +19,19 @@ type gameState = {
     players: array<Messages.player>
 }
 
-let make = (players: array<playerId>, cellsMap: array<array<Cell.cellInitState>>) => 
+let make = (cellsMap: array<array<Cell.cellInitState>>, gamePlayers: dict<actorRef<Messages.playerMsg>>) => 
   spawn(~name=`Game${Float.toString(Math.random())}`, system, async (state: gameState, msg:msg, ctx) =>
     switch msg {
-    | Start => {
-          let playersDictData: array<(string, actorRef<Messages.playerMsg>)> = state.players->Array.map((Messages.Player(PlayerId(playerId), playerActor)) => (playerId, playerActor))
-          Array.forEach(playersDictData, ((key, value)) => {
-            Game.gameState.players->Js.Dict.set(key, value)
+    | Start(players) => {
+          let playersDictData: array<(string, Messages.player, cellId)> = players->Array.map(((PlayerId(pid), originCell)) => (pid, Messages.Player(PlayerId(pid), Player.make(ctx.self, PlayerId(pid))), originCell))
+          Array.forEach(playersDictData, ((key, value, originCell)) => {
+            Array.push(state.players, value)
+            let Messages.Player(_, actor) = value
+            gamePlayers->Js.Dict.set(key, actor)
+            Option.forEach(state.cellsMap->Array.get(originCell.y), (row) => 
+              Option.forEach(row->Array.get(originCell.x), (Messages.Cell(_, cellActor)) => {
+                cellActor->dispatch(Messages.InitialCasa(value))
+              }))
           })
           state
         }
@@ -39,6 +45,6 @@ let make = (players: array<playerId>, cellsMap: array<array<Cell.cellInitState>>
       row->Array.mapWithIndex((cell, x) => 
         Messages.Cell({x, y}, Cell.make(ctx.self, {x, y}, cell)))),
       marketRates: initialMarketRates,
-      players: players->Array.map(playerId => Messages.Player(playerId, Player.make(ctx.self, playerId))) 
+      players: []
     },
 )

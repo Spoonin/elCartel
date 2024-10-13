@@ -182,7 +182,7 @@ let make = (gameFlow, PlayerId(pId)) => spawn(~name=pId, gameFlow, async (state,
     },
     _ => {
         resources: {
-            lumeros: Lumeros(10000),
+            lumeros: Lumeros(50000),
             evedamia: Evedamia(0),
             moxalin: Moxalin(0)
         },

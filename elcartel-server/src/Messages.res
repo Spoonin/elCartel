@@ -31,8 +31,6 @@ type playerMsg = [
 
 type player = Player(playerId, actorRef<playerMsg>)
 
-type cellId = { x:int, y:int }
-
 type casaMsg = 
 | ...buildMsg
 | ReceiveLumeros(lumeros)
@@ -62,6 +60,7 @@ and reason =
 
 
 and cellMsg = 
+| InitialCasa(player)
 | BuildCasa(playerId)
 | BuildEvedamiaField(playerId)
 | VehicleVisit(reply<option<reason>>)

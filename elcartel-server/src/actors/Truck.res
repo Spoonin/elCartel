@@ -12,7 +12,7 @@ type resource =
     | Evedamia(evedamia)
     | Moxalin(moxalin)
 
-type movement = Movement(Messages.cellId, Messages.cellId) // TODO: add speed
+type movement = Movement(cellId, cellId) // TODO: add speed
 
 type truck = {
     id: truckId,
@@ -88,7 +88,7 @@ let handleVisitReply = (self, state, patron) => {
 
 let getCell = (route: array<Messages.cell>, cellId) => route->Array.find((Cell(id, _)) => id == cellId)
 
-let isNeibour = (cellId1: Messages.cellId, cellId2: Messages.cellId) => {
+let isNeibour = (cellId1: cellId, cellId2: cellId) => {
     let dx = abs(cellId1.x - cellId2.x)
     let dy = abs(cellId1.y - cellId2.y)
     dx + dy <= 1

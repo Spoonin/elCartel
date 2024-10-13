@@ -18,11 +18,19 @@ type cellState = {
 
 let defaultPassTruTime = 10.0 *. Float.fromInt(second)
 
-let idToString = (id: Messages.cellId) => `x#${Int.toString(id.x)}::y#${Int.toString(id.y)}`
+let idToString = (id: cellId) => `${Int.toString(id.x)}x${Int.toString(id.y)}`
 let toString = (Messages.Cell(id, _)) => idToString(id)
 
-let make = (game, id: Messages.cellId, cellInitState: cellInitState) => spawn(~name=`x#${Int.toString(id.x)}::y#${Int.toString(id.y)}`, game, async (state: cellState, msg, ctx) =>
+let make = (game, id: cellId, cellInitState: cellInitState) => spawn(~name=`x_${Int.toString(id.x)}y_${Int.toString(id.y)}`, game, async (state: cellState, msg, ctx) =>
   switch msg {
+  | Messages.InitialCasa(player) => {
+    let Messages.Player(_, ownPlayer) = player
+    {
+      ...state,
+       ownPlayer: Some(player),
+       facility: Some(Casa(Casa.make(ownPlayer, ctx.name))),
+    }
+  }
   | Messages.BuildCasa(player) => {
     switch state.facility {
       | Some(_) => {
@@ -32,7 +40,7 @@ let make = (game, id: Messages.cellId, cellInitState: cellInitState) => spawn(~n
       | None => {
         switch state.ownPlayer {
           | Some(Player(ownerId, ownerActor)) => {
-            if player === ownerId {
+            if player == ownerId {
               let casa = Casa.make(ownerActor, ctx.name)
               casa->dispatch(Messages.Build)
 

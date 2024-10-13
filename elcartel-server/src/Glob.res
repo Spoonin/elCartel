@@ -1,4 +1,5 @@
 type playerId = PlayerId(string)
+type cellId = { x:int, y:int }
 
 type currentSpeed = Speed(float)
 type time = Time(float)
@@ -17,7 +18,6 @@ type moxalin = Moxalin(int)
 type lumeros = Lumeros(int)
 
 type duration = Duration(int)
-type position = {x: int, y: int}
 
 type reply<'a> = Reply('a => unit)
 

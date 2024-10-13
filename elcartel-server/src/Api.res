@@ -30,6 +30,7 @@ let jsonResponse = (data: 'a, ~status=200) => {
   }
 }
 
+let ok200 = jsonResponse(Dict.fromArray([("ok", true)]))
 let ok201 = (id: string) => jsonResponse(Dict.fromArray([("id", id)]), ~status=201)
 
 let err400 = jsonResponse(Dict.fromArray([("error", "Bad Request")]), ~status=400)
@@ -84,6 +85,21 @@ let handleRequest = async (req: Fetch.Request.t) => {
       }
     }
     | _ => err404
+    }
+  }
+  | "api/v1/start" => {
+    switch Fetch.Request.method(req){
+      | #POST => {
+        if Game.hasStarted(gameState) {
+            ok200
+        } else if hasCandidates(gameState) {
+          Game.startGame(gameState)
+          ok200
+        } else {
+          err409(~message="No candidates to start the game")
+        }
+      }
+      |_ => err404
     }
   }
   | _ => err404
