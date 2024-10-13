@@ -1,8 +1,3 @@
-type user = {
-    id: string,
-    name: string
-}
-
 type playerId = PlayerId(string)
 
 type currentSpeed = Speed(float)

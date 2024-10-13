@@ -70,7 +70,7 @@ let showErrorToClientSE = (error) => {
     Js.log(error) // TODO: send error to client
 }
 
-let make = (game, PlayerId(pId)) => spawn(~name=pId, game, async (state, msg:msg, _) =>
+let make = (gameFlow, PlayerId(pId)) => spawn(~name=pId, gameFlow, async (state, msg:msg, _) =>
     switch msg {
         | #ReceiveLumeros(l) => state->addLumeros(l)
         | #ReceiveEvedamia(e) => state->addEvedamia(e)

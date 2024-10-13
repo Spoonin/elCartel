@@ -113,7 +113,7 @@ let getCellId = (cell: Messages.cell) => {
 
 let make = (patron, id, currentCell) => spawn(~name=String.make(id), patron, async (state: truck, msg, ctx) =>
     switch msg {
-    | #StartRoute(route) => {
+    | #StartRoute(route, circulate) => {
         let curStep = Option.getOr(
           route->Array.findIndexOpt((cell) => cell === state.position),
           0,
@@ -124,7 +124,9 @@ let make = (patron, id, currentCell) => spawn(~name=String.make(id), patron, asy
         let Messages.Cell(nextId,_) = Option.getExn(getNextCell(route, startId), ~message="Invalid route")
 
         startActor->dispatch(VehicleVisit(Reply((_) => {
+          if curStep < Array.length(route) - 1 || circulate {
             ctx.self->dispatch(#DriveTo(nextId))
+          }
         })))
 
         {

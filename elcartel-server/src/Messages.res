@@ -29,13 +29,13 @@ type playerMsg = [
 | #SicarioBetrayed(string)
 ]
 
+type player = Player(playerId, actorRef<playerMsg>)
+
 type cellId = { x:int, y:int }
 
 type casaMsg = 
 | ...buildMsg
 | ReceiveLumeros(lumeros)
-
-type player = Player(playerId, actorRef<playerMsg>)
 
 type marketRates = {
     evedamiaToLumeros: float,
@@ -72,7 +72,7 @@ and truckMsg = [
 | receiveResourcesMsg
 | #UnloadTo(facility)
 | #SwitchCellTo(cellId)
-| #StartRoute(array<cell>) // TODO: add cells with explicit stops
+| #StartRoute(array<cell>, bool) // TODO: add cells with explicit stops
 | #DriveTo(cellId) // TODO: add variable speed
 ]
 

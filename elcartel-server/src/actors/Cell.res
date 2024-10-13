@@ -5,21 +5,23 @@ type msg = Messages.cellMsg
 
 type cell = actorRef<msg>
 
-type cellState = {
+type cellInitState = {
   moxaProductivity: float,
   evedamiaProductivity: float,
+}
+
+type cellState = {
+  ...cellInitState,
   ownPlayer: option<Messages.player>,
   facility: option<Messages.facility>,
-  roadQuality: float,
 }
 
 let defaultPassTruTime = 10.0 *. Float.fromInt(second)
 
-let passThruTime = (state) => defaultPassTruTime /. state.roadQuality
 let idToString = (id: Messages.cellId) => `x#${Int.toString(id.x)}::y#${Int.toString(id.y)}`
 let toString = (Messages.Cell(id, _)) => idToString(id)
 
-let make = (game, id: Messages.cellId, cellInitState: cellState) => spawn(~name=`x#${Int.toString(id.x)}::y#${Int.toString(id.y)}`, game, async (state: cellState, msg, ctx) =>
+let make = (game, id: Messages.cellId, cellInitState: cellInitState) => spawn(~name=`x#${Int.toString(id.x)}::y#${Int.toString(id.y)}`, game, async (state: cellState, msg, ctx) =>
   switch msg {
   | Messages.BuildCasa(player) => {
     switch state.facility {
@@ -91,5 +93,10 @@ let make = (game, id: Messages.cellId, cellInitState: cellState) => spawn(~name=
     state
   }
   },
-  _ => { ...cellInitState, ownPlayer: None },
+  _ => {
+      ownPlayer: None,
+      facility: None,
+      moxaProductivity: cellInitState.moxaProductivity,
+      evedamiaProductivity: cellInitState.evedamiaProductivity,
+  },
 )
