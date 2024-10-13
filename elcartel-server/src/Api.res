@@ -30,11 +30,11 @@ let jsonResponse = (data: 'a, ~status=200) => {
   }
 }
 
-let ok201 = jsonResponse(Dict.fromArray([("message", Js.Json.string("Created"))]), ~status=201)
+let ok201 = (id: string) => jsonResponse(Dict.fromArray([("id", id)]), ~status=201)
 
-let err400 = jsonResponse(Dict.fromArray([("error", Js.Json.string("Bad Request"))]), ~status=400)
-let err404 = jsonResponse(Dict.fromArray([("error", Js.Json.string("Not Found"))]), ~status=404)
-let err409 = (~message="Conflict state") => jsonResponse(Dict.fromArray([("error", Js.Json.string(message))]), ~status=409)
+let err400 = jsonResponse(Dict.fromArray([("error", "Bad Request")]), ~status=400)
+let err404 = jsonResponse(Dict.fromArray([("error", "Not Found")]), ~status=404)
+let err409 = (~message="Conflict state") => jsonResponse(Dict.fromArray([("error", message)]), ~status=409)
 
 type playerData = {
   id?: string,
@@ -76,7 +76,8 @@ let handleRequest = async (req: Fetch.Request.t) => {
         switch playerId {
           | Some(id) => {
             JsSet.add(gameState.playersCandidates, id)->ignore
-            ok201
+            let PlayerId(pid) = id
+            ok201(pid)
           }
           | None => err400
         }
@@ -89,10 +90,12 @@ let handleRequest = async (req: Fetch.Request.t) => {
   }
 }
 
+let port = 3000
+
 let start = () => {
   // Start the server on port 3000
   serve({
-    port: 3000,
+    port,
     fetch: handleRequest,
     error: (. error) => {
       Js.log2("Server error: ", error)
@@ -100,4 +103,4 @@ let start = () => {
   })
 }
 
-Js.log("Bun server is running on http://localhost:3000")
+Js.log(`Server is running on ${Int.toString(port)}`)
