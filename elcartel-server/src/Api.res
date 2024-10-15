@@ -60,8 +60,9 @@ let decodePlayer = json =>
 // Handler for different routes
 let handleRequest = async (req: Fetch.Request.t) => {
   let url = URL.make(Fetch.Request.url(req))
+
   switch url["pathname"] {
-  | "api/v1/players" => {
+  | "/api/v1/players" => {
     switch Fetch.Request.method(req){
     | #GET => {
       let data = Js.Dict.keys(gameState.players)
@@ -87,7 +88,7 @@ let handleRequest = async (req: Fetch.Request.t) => {
     | _ => err404
     }
   }
-  | "api/v1/start" => {
+  | "/api/v1/start" => {
     switch Fetch.Request.method(req){
       | #POST => {
         if Game.hasStarted(gameState) {
@@ -101,6 +102,10 @@ let handleRequest = async (req: Fetch.Request.t) => {
       }
       |_ => err404
     }
+  }
+  | "/api/v1/end" => {
+    Game.startGame(gameState)
+    ok200
   }
   | _ => err404
   }
@@ -120,3 +125,5 @@ let start = () => {
 }
 
 Js.log(`Server is running on ${Int.toString(port)}`)
+
+start()

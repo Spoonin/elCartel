@@ -26,7 +26,7 @@ let gameState = {
 
 let playerOriginCellsStack = [  {x: 0, y:4}, {x: 1, y:3}, {x: 3, y:3}, {x: 2, y:0}, {x: 4, y:2} ]
 
-let hasStarted: t => bool = (game) => game.players == Js.Dict.empty()
+let hasStarted: t => bool = (game) => game.players != Js.Dict.empty()
 let hasCandidates: t => bool = (game) => Set.size(game.playersCandidates) > 1
 let startGame: t => unit = (game) => {
     let playersIds = game.playersCandidates
@@ -38,4 +38,8 @@ let startGame: t => unit = (game) => {
     game.gameFlow->Nact.dispatch(
         GameFlow.Start(playersWithOrigins)
     )
+}
+
+let endGame: t => unit = (game) => {
+    game.gameFlow->Nact.dispatch(GameFlow.End)
 }

@@ -37,6 +37,7 @@ let make = (cellsMap: array<array<Cell.cellInitState>>, gamePlayers: dict<actorR
         }
         | End => {
           stop(ctx.self)
+          stop(system)
           state
         }
     },
