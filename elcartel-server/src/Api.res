@@ -104,7 +104,7 @@ let handleRequest = async (req: Fetch.Request.t) => {
     }
   }
   | "/api/v1/end" => {
-    Game.startGame(gameState)
+    Game.endGame(gameState)
     ok200
   }
   | _ => err404
