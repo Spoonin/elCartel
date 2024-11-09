@@ -12,14 +12,13 @@ type sicario = {
     guardingCell: option<actorRef<Types.cellMsg>>,
     hapinness: float,
     dead: bool,
-    patron: option<actorRef<Player.msg>>
 }
 
 let ariphmeticHapinessDecrement = (curHapiness: float) => 1.0 -. curHapiness > 0.0 ? 
 1.0 -. curHapiness > 0.5 ? 0.2 : 1.0 -. curHapiness :
 0.1
 
-let recallPayDay = async (state, patron: actorRef<Player.msg>, self) => {
+let recallPayDay = async (state, patron: actorRef<Types.playerMsg>, self) => {
     let result = await Glob.query100(patron, (agent) => { #GiveLumeros(salary, agent) })
     
     switch result {
@@ -38,7 +37,6 @@ let considerBetrayal = (state, patron) => {
         patron->dispatch(#SicarioBetrayed(state.name))
         {
             ...state,
-            patron: None,
             guardingCell: None
         }
     } else {
@@ -46,20 +44,16 @@ let considerBetrayal = (state, patron) => {
     }
 }
 
-let make = (name, game) => {
+let make = (name, game, patron) => {
     let self = spawn(~name=name, game, async (state: sicario, msg: Types.sicarioMsg, ctx) => 
     switch msg {
     | RecallPayDay => {
-        switch state.patron {
-            | Some(patron) => {
-                Glob.runPreparation(Duration(salaryEvery), () => ctx.self->dispatch(RecallPayDay))
-                await state->recallPayDay(patron, ctx.self)
-            }
-            | None => state
-        }
+        Glob.runPreparation(Duration(salaryEvery), () => ctx.self->dispatch(RecallPayDay))
+        await state->recallPayDay(patron, ctx.self)
     }
     | Die => {
         Glob.runPreparation(Duration(getBurriedTime), () => stop(ctx.self))
+        patron->dispatch(#SicarioDied(name))
         {
             ...state,
             dead: true
@@ -73,13 +67,8 @@ let make = (name, game) => {
         }
     }
     | ConsiderBetrayal => {
-        switch state.patron {
-        | Some(patron) => {
-            Glob.runPreparation(Duration(considerBetrayalEvery), () => ctx.self->dispatch(ConsiderBetrayal))
-            considerBetrayal(state, patron)
-        }
-        | None => state
-        }
+        Glob.runPreparation(Duration(considerBetrayalEvery), () => ctx.self->dispatch(ConsiderBetrayal))
+        considerBetrayal(state, patron)
     }
     | SalaryGiven => {
         let updHapiness = state.hapinness +. 0.5
@@ -94,7 +83,6 @@ let make = (name, game) => {
         salariesCount: 0,
         hapinness: 1.0,
         dead: false,
-        patron: None
         }
     )
 

@@ -17,7 +17,6 @@ type gameState = {
     cellsMap: array<array<Types.cell>>,
     marketRates: Types.marketRates,
     players: array<Types.player>,
-    sicarios: dict<Nact.actorRef<Types.sicarioMsg>>,
 }
 
 let make = (cellsMap: array<array<Cell.cellInitState>>, gamePlayers: dict<actorRef<Types.playerMsg>>) => 
@@ -48,6 +47,5 @@ let make = (cellsMap: array<array<Cell.cellInitState>>, gamePlayers: dict<actorR
         Types.Cell({x, y}, Cell.make(ctx.self, {x, y}, cell)))),
       marketRates: initialMarketRates,
       players: [],
-      sicarios: Js.Dict.empty(),
     },
 )

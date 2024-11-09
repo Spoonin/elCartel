@@ -14,8 +14,18 @@ type msg = Types.playerMsg
 type playerState = {
     resources, 
     debts: Map.t<Types.playerId, resources>, 
-    dealersDepts: Map.t<string, Types.lumeros>,
+    dealersDebts: Map.t<string, Types.lumeros>,
+    sicarios: Map.t<string, actorRef<Types.sicarioMsg>>,
 }
+
+let firstNames = ["Alejandro", "Andrés", "Carlos", "Diego", "Eduardo", "Fernando", "Francisco", "Gabriel", "Gustavo", "Javier", "José", "Juan", "Luis", "Manuel", "Miguel", "Pablo", "Rafael", "Ricardo", "Santiago", "Sebastián"]
+let lastNames = ["García", "Martínez", "González", "Pérez", "Rodríguez", "Sánchez", "Ramírez", "Torres", "Flores", "Castillo", "Vázquez", "Morales", "Ríos", "Jiménez", "Díaz", "Reyes", "Ortiz", "Mendoza", "Cruz", "Castro", "Ruiz", "Vega", "Gutiérrez", "Chávez", "Ramos", "Álvarez", "Aguilar", "Domínguez"]
+
+let getRandomName = (names) => Option.getOr(names[Js.Math.random_int(0, names->Array.length - 1)], "")
+
+let randomName = () => `${getRandomName(firstNames)} ${getRandomName(lastNames)} ${Int.toString(Js.Math.random_int(1, 99999999))}`
+
+
 
 let validateLumerosUpd = ({resources}, Types.Lumeros(x)) => {
     let Types.Lumeros(cur) = resources.lumeros
@@ -72,7 +82,7 @@ let showErrorToClientSE = (error) => {
     Js.log(error) // TODO: send error to client
 }
 
-let make = (gameFlow, Types.PlayerId(pId)) => spawn(~name=pId, gameFlow, async (state, msg:msg, _) =>
+let make = (gameFlow, Types.PlayerId(pId)) => spawn(~name=pId, gameFlow, async (state, msg:msg, ctx) =>
     switch msg {
         | #ReceiveLumeros(l) => state->addLumeros(l)
         | #ReceiveEvedamia(e) => state->addEvedamia(e)
@@ -129,9 +139,9 @@ let make = (gameFlow, Types.PlayerId(pId)) => spawn(~name=pId, gameFlow, async (
             }
         }
         | #LumerosDebtedByDealer(lumeros, dealerId) => {
-            switch state.dealersDepts->Map.get(dealerId) {
+            switch state.dealersDebts->Map.get(dealerId) {
                 | None => {
-                    state.dealersDepts->Map.set(dealerId, lumeros)
+                    state.dealersDebts->Map.set(dealerId, lumeros)
                     state
                 }
                 | Some(debt) => {
@@ -139,7 +149,7 @@ let make = (gameFlow, Types.PlayerId(pId)) => spawn(~name=pId, gameFlow, async (
                     let Types.Lumeros(newDebtL) = lumeros
                 
                     let newDebt = Types.Lumeros(debtL + newDebtL)
-                    state.dealersDepts->Map.set(dealerId, newDebt)
+                    state.dealersDebts->Map.set(dealerId, newDebt)
                     state
                 }
             }
@@ -178,9 +188,18 @@ let make = (gameFlow, Types.PlayerId(pId)) => spawn(~name=pId, gameFlow, async (
                 }
             }
         }
-
-        | #SicarioBetrayed(sicarioId) => {
-            Js.log(`Sicario ${sicarioId} betrayed`)
+        | #HireSicario => {
+            let name = randomName()
+            let sicario = Sicario.make(name, gameFlow, ctx.self)
+            state.sicarios->Map.set(name, sicario)
+            state
+        }
+        | #SicarioDied(name) => {
+            state.sicarios->Map.delete(name)->ignore
+            state
+        }
+        | #SicarioBetrayed(name) => {
+            state.sicarios->Map.delete(name)->ignore
             state
         }
     },
@@ -191,6 +210,7 @@ let make = (gameFlow, Types.PlayerId(pId)) => spawn(~name=pId, gameFlow, async (
             moxalin: Moxalin(0)
         },
         debts: Map.make(),
-        dealersDepts: Map.make()
+        dealersDebts: Map.make(),
+        sicarios: Map.make(),
     }
 )

@@ -50,7 +50,9 @@ type playerMsg = [
 | #LumerosDebtedByDealer(lumeros, string)
 | #EvedamiaNotProvided(evedamia, playerId)
 | #MoxalinNotProvided(moxalin, playerId)
+| #HireSicario
 | #SicarioBetrayed(string)
+| #SicarioDied(string)
 ]
 
 type player = Player(playerId, actorRef<playerMsg>)
