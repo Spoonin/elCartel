@@ -12,12 +12,6 @@ let initialMarketRates: Types.marketRates = {
   moxalinToLumeros: 1000.0,
 }
 
-let firstNames = ["Alejandro", "Andrés", "Carlos", "Diego", "Eduardo", "Fernando", "Francisco", "Gabriel", "Gustavo", "Javier", "José", "Juan", "Luis", "Manuel", "Miguel", "Pablo", "Rafael", "Ricardo", "Santiago", "Sebastián"]
-let lastNames = ["García", "Martínez", "González", "Pérez", "Rodríguez", "Sánchez", "Ramírez", "Torres", "Flores", "Castillo", "Vázquez", "Morales", "Ríos", "Jiménez", "Díaz", "Reyes", "Ortiz", "Mendoza", "Cruz", "Castro", "Ruiz", "Vega", "Gutiérrez", "Chávez", "Ramos", "Álvarez", "Aguilar", "Domínguez"]
-
-let getRandomName = (names) => Option.getOr(names[Js.Math.random_int(0, names->Array.length - 1)], "")
-
-let randomName = () => `${getRandomName(firstNames)} ${getRandomName(lastNames)} ${Int.toString(Js.Math.random_int(1, 99999999))}`
 
 type gameState = {
     cellsMap: array<array<Types.cell>>,
@@ -25,18 +19,6 @@ type gameState = {
     players: array<Types.player>,
     sicarios: dict<Nact.actorRef<Types.sicarioMsg>>,
 }
-
-let getOrCreateSicario = (state, mbSicario: option<Nact.actorRef<Types.sicarioMsg>>, gameFlow) => 
-  switch mbSicario {
-    | Some(sicario) => sicario
-    | None => {
-      let name = randomName()
-      let sicario = Sicario.make(name, gameFlow)
-
-      state.sicarios->Js.Dict.set(name, sicario)
-      sicario
-    }
-  }
 
 let make = (cellsMap: array<array<Cell.cellInitState>>, gamePlayers: dict<actorRef<Types.playerMsg>>) => 
   spawn(~name=`Game${Float.toString(Math.random())}`, system, async (state: gameState, msg:msg, ctx) =>

@@ -9,7 +9,7 @@ let betrayThreshold = 0.7
 type sicario = {
     name: string,
     salariesCount: int,
-    guardingCell: option<Cell.cell>,
+    guardingCell: option<actorRef<Types.cellMsg>>,
     hapinness: float,
     dead: bool,
     patron: option<actorRef<Player.msg>>

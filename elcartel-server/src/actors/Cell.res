@@ -2,8 +2,6 @@ open Nact
 
 type msg = Types.cellMsg
 
-type cell = actorRef<msg>
-
 type cellInitState = {
   moxaProductivity: float,
   evedamiaProductivity: float,
