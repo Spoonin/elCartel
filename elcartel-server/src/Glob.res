@@ -8,8 +8,6 @@ let runPreparation = (duration, cb: () => unit) => {
     Js.Global.setTimeout(cb, x)->ignore
 }
 
-type updateBuildProcessMsg = UpdateBuildingProcess(float) 
-
 let startBuildProcess = (updateBuildProcess: (float) => unit, buildTime, ~stagesCount=10) => {
     let rec loop = (prevProcess: float) => {
         if prevProcess < 1.0 {

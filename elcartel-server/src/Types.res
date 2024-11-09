@@ -15,6 +15,8 @@ type moveDirection =
 type error = 
 | NotEnoughResources
 
+type updateBuildProcessMsg = UpdateBuildingProcess(float) 
+
 type evedamia = Evedamia(int)
 type moxalin = Moxalin(int)
 type lumeros = Lumeros(int)
