@@ -1,5 +1,5 @@
 open Nact
-open Glob
+open Types
 
 type truckId = TruckId(string)
 
@@ -8,85 +8,86 @@ let evedamiaCapacity = 1000
 let moxalinCapacity = 1000
 
 type resource = 
-    | Lumeros(lumeros)
-    | Evedamia(evedamia)
-    | Moxalin(moxalin)
+    | LumerosPack(lumeros)
+    | EvedamiaPack(evedamia)
+    | MoxalinPack(moxalin)
 
 type movement = Movement(cellId, cellId) // TODO: add speed
 
 type truck = {
     id: truckId,
     load: option<resource>,
-    position: Messages.cell,
-    route: option<array<Messages.cell>>,
+    position: Types.cell,
+    route: option<array<Types.cell>>,
     movement: option<movement>,
     isLoading: bool,
 }
 
 let defaultSpeedCellsPerSec = 1.0 /. Float.fromInt(second)
 
-let handleExchange = (self, facility, dealer, patron)  =>(lumeros) => {
-                            self->dispatch(#UnloadTo(facility))
-                            dealer->dispatch(#GiveLumeros(lumeros, Reply((result) =>{
-                              switch result {
-                                | Ok(lumeros) => self -> dispatch(#ReceiveLumeros(lumeros))
-                                | Error(_) => patron -> dispatch(#LumerosDebtedByDealer(lumeros, "dealer"))
-                              }
-                            })))
-                        }
+let handleVisitResponse = async (self, state, stopReason) => {
+  switch stopReason {
+  | Some(LoadResources(facility)) => {
+      switch facility {                
+      | EvedamiaField(evedamiaField) => {
+          evedamiaField->dispatch(Types.TruckCanLoad(evedamiaCapacity, self))
+      }
+      | Casa(_) => () // Other facilities cannot load resources
+      | Dealer(_) => ()
+      }
 
-let handleVisitReply = (self, state, patron) => {
-    (stopReason: option<Messages.reason>) => {
-        switch stopReason {
-        | Some(LoadResources(facility)) =>
-            switch facility {                
-            | EvedamiaField(evedamiaField) => {
-                evedamiaField->dispatch(Messages.TruckCanLoad(evedamiaCapacity, self))
-            }
-            | Casa(_) => () // Other facilities cannot load resources
-            | Dealer(_) => ()
-            }
-        | Some(UnloadResources(facility)) => 
-            switch facility {
-            | Casa(_) =>
-                switch state.load {
-                | Some(resource) => 
-                    switch resource {
-                    | Lumeros(_) => self->dispatch(#UnloadTo(facility))
-                    | _ => () // Nothing else can casa receive
-                    }
-                | None => () // Nothing to unload
+      state
+  }
+  | Some(UnloadResources(facility)) => {
+      switch facility {
+      | Casa(casa) =>
+          switch state.load {
+          | Some(resource) => 
+              switch resource {
+              | LumerosPack(amt) => casa->dispatch(ReceiveLumeros(amt))
+              | _ => () // Nothing else can casa receive
+              }
+          | None => () // Nothing to unload
+          }
+      | EvedamiaField(_) => () // EvedamiaField cannot unload resources
+      | Dealer(_) => () // Dealer cannot unload resources
+      }
+      state
+  }
+  | Some(SellResources(facility)) => {
+      switch facility {
+        | Dealer(dealer) => {
+          switch state.load {
+            | Some(resource) =>
+              switch resource {
+                | LumerosPack(_) => state // Lumeros cannot be sold
+                | EvedamiaPack(evedamia) => {
+                  let lumeros = await dealer->Glob.query100((agent) => #ExchangeEvedamia(evedamia, agent))
+                  {
+                    ...state,
+                    load: Some(LumerosPack(lumeros)),
+                  }
                 }
-            | EvedamiaField(_) => () // EvedamiaField cannot unload resources
-            | Dealer(_) => () // Dealer cannot unload resources
-            }
-        | Some(SellResources(facility)) => {
-            switch facility {
-              | Dealer(dealer) => {
-                switch state.load {
-                  | Some(resource) =>
-                    switch resource {
-                      | Lumeros(_) => () // Lumeros cannot be sold
-                      | Evedamia(evedamia) => {
-                        dealer->dispatch(#ExchangeEvedamia(evedamia, Reply(handleExchange(self, facility, dealer, patron))))
-                      }
-                      | Moxalin(moxalin) => {
-                        dealer->dispatch(#ExchangeMoxalin(moxalin, Reply(handleExchange(self, facility, dealer, patron))))
-                      }
-                    }
-                  | None => () // Nothing to sell
+                | MoxalinPack(moxalin) => {
+                  let lumeros = await dealer->Glob.query100((agent) => #ExchangeMoxalin(moxalin, agent))
+                  {
+                    ...state,
+                    load: Some(LumerosPack(lumeros)),
+                  }
                 }
               }
-              | _ => ()
-            }
+            | None => state // Nothing to sell
+          }
         }
-        | None => () // Nothing to sell
-        }
-    }
+        | _ => state
+      }
+  }
+  | None => state // Nothing to sell
+  }
 }
 
 
-let getCell = (route: array<Messages.cell>, cellId) => route->Array.find((Cell(id, _)) => id == cellId)
+let getCell = (route: array<Types.cell>, cellId) => route->Array.find((Cell(id, _)) => id == cellId)
 
 let isNeibour = (cellId1: cellId, cellId2: cellId) => {
     let dx = abs(cellId1.x - cellId2.x)
@@ -94,7 +95,7 @@ let isNeibour = (cellId1: cellId, cellId2: cellId) => {
     dx + dy <= 1
 }
 
-let getNextCell = (route: array<Messages.cell>, currentCellId) => {
+let getNextCell = (route: array<Types.cell>, currentCellId) => {
     let curStep = route->Array.findIndexOpt((Cell(cellId, _)) => currentCellId == cellId)
     
     switch curStep {
@@ -106,8 +107,8 @@ let getNextCell = (route: array<Messages.cell>, currentCellId) => {
   }
 }
 
-let getCellId = (cell: Messages.cell) => {
-  let Messages.Cell(id, _) = cell
+let getCellId = (cell: Types.cell) => {
+  let Types.Cell(id, _) = cell
   id
 }
 
@@ -119,46 +120,49 @@ let make = (patron, id, currentCell) => spawn(~name=String.make(id), patron, asy
           0,
         )
     
-        let Messages.Cell(startId, startActor) = Option.getExn(route[curStep], ~message="Invalid route")
+        let Types.Cell(startId, startCellActor) = Option.getExn(route[curStep], ~message="Invalid route")
 
-        let Messages.Cell(nextId,_) = Option.getExn(getNextCell(route, startId), ~message="Invalid route")
+        let Types.Cell(nextId,_) = Option.getExn(getNextCell(route, startId), ~message="Invalid route")
 
-        startActor->dispatch(VehicleVisit(Reply((_) => {
-          if curStep < Array.length(route) - 1 || circulate {
-            ctx.self->dispatch(#DriveTo(nextId))
-          }
-        })))
+        (await startCellActor->Glob.query100((actor) => VehicleVisit(actor)))->ignore
+
+        if curStep < Array.length(route) - 1 || circulate {
+          ctx.self->dispatch(#DriveTo(nextId))
+        }
 
         {
           ...state,
-          position: Messages.Cell(startId, startActor),
+          position: Types.Cell(startId, startCellActor),
           movement: Some(Movement(startId, nextId)),
           route: Some(route),
         }
       }
     | #SwitchCellTo(toCellId) => {
-      let Messages.Cell(curId,_) = state.position
+      let Types.Cell(curId,_) = state.position
     
       if(toCellId == curId) {
           if(isNeibour(curId, toCellId)) {
             let route = Option.getExn(state.route, ~message="No route set")
-              let cell = getCell(route, toCellId)
+            let cell = getCell(route, toCellId)
               
-              switch cell {
-                | Some(Cell(cellId, cellActor)) => {
-                  cellActor->dispatch(VehicleVisit(Reply(handleVisitReply(ctx.self, state, patron))))
-                  Option.map(
-                    getNextCell(route, cellId), 
-                    (cell) => ctx.self->dispatch(#DriveTo(getCellId(cell)))
-                  )->ignore // TODO: double check this
-                  Js.log(`${ctx.name} - Appeared at ${Cell.idToString(cellId)}`)
-                  {
-                    ...state,
-                    position: Cell(cellId, cellActor),
-                  }
+            switch cell {
+              | Some(Cell(cellId, cellActor)) => {
+                let reason = await cellActor->Glob.query100((agent) => Types.VehicleVisit(agent))
+
+                let updState = await handleVisitResponse(ctx.self, state, reason)
+
+                Option.map(
+                  getNextCell(route, cellId), 
+                  (cell) => ctx.self->dispatch(#DriveTo(getCellId(cell)))
+                )->ignore // TODO: double check this
+                Js.log(`${ctx.name} - Appeared at ${Cell.idToString(cellId)}`)
+                {
+                  ...updState,
+                  position: Cell(cellId, cellActor),
                 }
-                | None => failwith("Cell is not in the current route")
               }
+              | None => failwith("Cell is not in the current route")
+            }
           } else {
             failwith("Cannot jump to a non-neighbour cell")
           }
@@ -167,8 +171,8 @@ let make = (patron, id, currentCell) => spawn(~name=String.make(id), patron, asy
       }       
     }
     | #DriveTo(toCellId) => {
-      let Messages.Cell(fromCellId,_) = state.position
-      timeout(()=>ctx.self->dispatch(#SwitchCellTo(toCellId)), defaultSpeedCellsPerSec)
+      let Types.Cell(fromCellId,_) = state.position
+      Glob.timeout(()=>ctx.self->dispatch(#SwitchCellTo(toCellId)), defaultSpeedCellsPerSec)
 
       Js.log(`${ctx.name} - Driving from ${Cell.idToString(fromCellId)} to ${Cell.idToString(toCellId)}`)
       
@@ -179,17 +183,16 @@ let make = (patron, id, currentCell) => spawn(~name=String.make(id), patron, asy
     }
     | #ReceiveLumeros(lumeros) => {
         ...state,
-        load: Some(Lumeros(lumeros)),
+        load: Some(LumerosPack(lumeros)),
       }
     | #ReceiveEvedamia(evedamia) => {
         ...state,
-        load: Some(Evedamia(evedamia)),
+        load: Some(EvedamiaPack(evedamia)),
       }
     | #ReceiveMoxalin(moxalin) => {
         ...state,
-        load: Some(Moxalin(moxalin)),
+        load: Some(MoxalinPack(moxalin)),
       }
-    | #UnloadTo(_) => failwith("TODO")
     }, 
     _ => {
         id,

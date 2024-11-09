@@ -1,7 +1,6 @@
 open Nact
-open Glob
 
-type msg = Messages.cellMsg
+type msg = Types.cellMsg
 
 type cell = actorRef<msg>
 
@@ -12,26 +11,26 @@ type cellInitState = {
 
 type cellState = {
   ...cellInitState,
-  ownPlayer: option<Messages.player>,
-  facility: option<Messages.facility>,
+  ownPlayer: option<Types.player>,
+  facility: option<Types.facility>,
 }
 
 let defaultPassTruTime = 10.0 *. Float.fromInt(second)
 
-let idToString = (id: cellId) => `${Int.toString(id.x)}x${Int.toString(id.y)}`
-let toString = (Messages.Cell(id, _)) => idToString(id)
+let idToString = (id: Types.cellId) => `${Int.toString(id.x)}x${Int.toString(id.y)}`
+let toString = (Types.Cell(id, _)) => idToString(id)
 
-let make = (game, id: cellId, cellInitState: cellInitState) => spawn(~name=`x_${Int.toString(id.x)}y_${Int.toString(id.y)}`, game, async (state: cellState, msg, ctx) =>
+let make = (game, id: Types.cellId, cellInitState: cellInitState) => spawn(~name=`x_${Int.toString(id.x)}y_${Int.toString(id.y)}`, game, async (state: cellState, msg, ctx) =>
   switch msg {
-  | Messages.InitialCasa(player) => {
-    let Messages.Player(_, ownPlayer) = player
+  | Types.InitialCasa(player) => {
+    let Types.Player(_, ownPlayer) = player
     {
       ...state,
        ownPlayer: Some(player),
-       facility: Some(Casa(Casa.make(ownPlayer, ctx.name))),
+       facility: Some(Types.Casa(Casa.make(ownPlayer, ctx.name))),
     }
   }
-  | Messages.BuildCasa(player) => {
+  | Types.BuildCasa(player) => {
     switch state.facility {
       | Some(_) => {
         Js.log(`Cell ${ctx.name} is occupied - build at another cell`)
@@ -42,7 +41,7 @@ let make = (game, id: cellId, cellInitState: cellInitState) => spawn(~name=`x_${
           | Some(Player(ownerId, ownerActor)) => {
             if player == ownerId {
               let casa = Casa.make(ownerActor, ctx.name)
-              casa->dispatch(Messages.Build)
+              casa->dispatch(Types.Build)
 
               {
                 ...state,
@@ -72,7 +71,7 @@ let make = (game, id: cellId, cellInitState: cellInitState) => spawn(~name=`x_${
           | Some(Player(ownerId, ownerActor)) => {
             if player === ownerId {
               let ef = EvedamiaField.make(ctx.self,ownerActor, state.evedamiaProductivity)
-              ef->dispatch(Messages.Build)
+              ef->dispatch(Types.Build)
 
               {
                 ...state,
@@ -91,12 +90,12 @@ let make = (game, id: cellId, cellInitState: cellInitState) => spawn(~name=`x_${
       }
     }
   }
-  | VehicleVisit(Reply(cb)) => {
+  | VehicleVisit(agent) => {
     switch state.facility {
-    | Some(EvedamiaField(ef)) => cb(Some(LoadResources(EvedamiaField(ef))))
-    | Some(Casa(c)) => cb(Some(UnloadResources(Casa(c))))
-    | Some(Dealer(d)) => cb(Some(LoadResources(Dealer(d))))
-    | None =>cb(None)
+    | Some(EvedamiaField(ef)) => agent->dispatch(Some(LoadResources(EvedamiaField(ef))))
+    | Some(Casa(c)) => agent->dispatch(Some(UnloadResources(Casa(c))))
+    | Some(Dealer(d)) => agent->dispatch(Some(LoadResources(Dealer(d))))
+    | None => agent->dispatch(None)
     }
     state
   }

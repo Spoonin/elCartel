@@ -1,5 +1,27 @@
-open Glob
 open Nact
+
+type playerId = PlayerId(string)
+type cellId = { x:int, y:int }
+
+type currentSpeed = Speed(float)
+type time = Time(float)
+
+type moveDirection = 
+    | Up
+    | Down
+    | Left
+    | Right
+
+type error = 
+| NotEnoughResources
+
+type evedamia = Evedamia(int)
+type moxalin = Moxalin(int)
+type lumeros = Lumeros(int)
+
+type duration = Duration(int)
+
+type queryRes<'a> = actorRef<'a>
 
 type buildMsg =
 | Build
@@ -15,9 +37,9 @@ type receiveResourcesMsg = [
 
 type resourcesExchangeMsg = [
 | receiveResourcesMsg
-| #GiveLumeros(lumeros, reply<result<lumeros, error>>) // Must be called only from Reply TODO: protect with token
-| #GiveEvedamia(evedamia, reply<result<evedamia, error>>) // Must be called only from Reply TODO: protect with token
-| #GiveMoxalin(moxalin, reply<result<moxalin, error>>) // Must be called only from Reply TODO: protect with token
+| #GiveLumeros(lumeros, queryRes<result<lumeros, string>>) // TODO: protect with token
+| #GiveEvedamia(evedamia, queryRes<result<evedamia, error>>) // TODO: protect with token
+| #GiveMoxalin(moxalin, queryRes<result<moxalin, error>>) // TODO: protect with token
 ]
 
 type playerMsg = [
@@ -31,6 +53,15 @@ type playerMsg = [
 
 type player = Player(playerId, actorRef<playerMsg>)
 
+type sicarioMsg = 
+| RecallPayDay
+| ConsiderBetrayal
+| SalaryGiven
+| SalaryMissed
+| Die
+
+type sicario = Sicario(string, actorRef<sicarioMsg>)
+
 type casaMsg = 
 | ...buildMsg
 | ReceiveLumeros(lumeros)
@@ -40,7 +71,6 @@ type marketRates = {
     moxalinToLumeros: float
 }
 
-
 type rec facility = 
 | Casa(actorRef<casaMsg>)
 | EvedamiaField(actorRef<evedamiaFieldMsg>)
@@ -49,8 +79,8 @@ type rec facility =
 and dealerMsg = [
 | resourcesExchangeMsg
 | #UpdateMarketRates(marketRates)
-| #ExchangeEvedamia(evedamia, reply<lumeros>)
-| #ExchangeMoxalin(moxalin, reply<lumeros>)
+| #ExchangeEvedamia(evedamia, queryRes<lumeros>)
+| #ExchangeMoxalin(moxalin, queryRes<lumeros>)
 ]
 
 and reason = 
@@ -63,13 +93,12 @@ and cellMsg =
 | InitialCasa(player)
 | BuildCasa(playerId)
 | BuildEvedamiaField(playerId)
-| VehicleVisit(reply<option<reason>>)
+| VehicleVisit(queryRes<option<reason>>)
 
 and cell = Cell(cellId, actorRef<cellMsg>)
 
 and truckMsg = [
 | receiveResourcesMsg
-| #UnloadTo(facility)
 | #SwitchCellTo(cellId)
 | #StartRoute(array<cell>, bool) // TODO: add cells with explicit stops
 | #DriveTo(cellId) // TODO: add variable speed

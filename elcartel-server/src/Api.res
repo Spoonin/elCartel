@@ -1,4 +1,3 @@
-open Glob
 open Game
 
 type serveOptions = {
@@ -50,7 +49,7 @@ let decodePlayer = json =>
     switch (userDict->Dict.get("id")) {
     | (Some(String(id))) =>
       Some({
-        PlayerId(id)
+        Types.PlayerId(id)
       })
     | _ => None
     }
@@ -78,7 +77,7 @@ let handleRequest = async (req: Fetch.Request.t) => {
         switch playerId {
           | Some(id) => {
             JsSet.add(gameState.playersCandidates, id)->ignore
-            let PlayerId(pid) = id
+            let Types.PlayerId(pid) = id
             ok201(pid)
           }
           | None => err400
@@ -86,6 +85,11 @@ let handleRequest = async (req: Fetch.Request.t) => {
       }
     }
     | _ => err404
+    }
+  }
+  | "/api/v1/players/:id/" => {
+    switch Fetch.Request.method(req){
+    |_ => err404
     }
   }
   | "/api/v1/start" => {

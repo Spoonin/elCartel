@@ -1,9 +1,8 @@
-open Glob
 type t = {
     gameFlow: Nact.actorRef<GameFlow.msg>,
     cells: array<array<Cell.cellInitState>>,
-    playersCandidates: Set.t<playerId>,
-    players: dict<Nact.actorRef<Messages.playerMsg>>,
+    playersCandidates: Set.t<Types.playerId>,
+    players: dict<Nact.actorRef<Types.playerMsg>>,
 }
 
 let getCell: (float, float) => Cell.cellInitState = (m, e) => { moxaProductivity: m, evedamiaProductivity: e, }
@@ -24,7 +23,7 @@ let gameState = {
     players,
 }
 
-let playerOriginCellsStack = [  {x: 0, y:4}, {x: 1, y:3}, {x: 3, y:3}, {x: 2, y:0}, {x: 4, y:2} ]
+let playerOriginCellsStack: array<Types.cellId> = [  {x: 0, y:4}, {x: 1, y:3}, {x: 3, y:3}, {x: 2, y:0}, {x: 4, y:2} ]
 
 let hasStarted: t => bool = (game) => game.players != Js.Dict.empty()
 let hasCandidates: t => bool = (game) => Set.size(game.playersCandidates) > 1

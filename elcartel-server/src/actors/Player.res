@@ -1,67 +1,69 @@
 open Nact
-open Glob
-
 
 type insufficientError = InsufficientLumerosError | InsufficientEvedamiaError | InsufficientMoxalinError
 type didntPay = LumerosNotPaidError | EvedamiaNotProvidedError | MoxalinNotProvidedError
 
 type resources = { 
-    evedamia: evedamia, 
-    moxalin: moxalin, 
-    lumeros: lumeros,
+    evedamia: Types.evedamia, 
+    moxalin: Types.moxalin, 
+    lumeros: Types.lumeros,
 }
 
-type msg = Messages.playerMsg
+type msg = Types.playerMsg
 
-type playerState = {resources, debts: Map.t<playerId, resources>, dealersDepts: Map.t<string, lumeros>}
+type playerState = {
+    resources, 
+    debts: Map.t<Types.playerId, resources>, 
+    dealersDepts: Map.t<string, Types.lumeros>,
+}
 
-let validateLumerosUpd = ({resources}, Lumeros(x)) => {
-    let Lumeros(cur) = resources.lumeros
+let validateLumerosUpd = ({resources}, Types.Lumeros(x)) => {
+    let Types.Lumeros(cur) = resources.lumeros
     cur + x >= 0
 }
 
-let validateMoxalinUpd = ({resources}, Moxalin(x)) => {
-    let Moxalin(cur) = resources.moxalin
+let validateMoxalinUpd = ({resources}, Types.Moxalin(x)) => {
+    let Types.Moxalin(cur) = resources.moxalin
     cur + x >= 0
 }
 
-let validateEvedamiaUpd = ({resources}, Evedamia(x)) => {
-    let Evedamia(cur) = resources.evedamia
+let validateEvedamiaUpd = ({resources}, Types.Evedamia(x)) => {
+    let Types.Evedamia(cur) = resources.evedamia
     cur + x >= 0
 }
 
-let addLumeros = (state, Lumeros(x)) => {
-    let Lumeros(curCount) = state.resources.lumeros
+let addLumeros = (state, Types.Lumeros(x)) => {
+    let Types.Lumeros(curCount) = state.resources.lumeros
     
     {
         ...state,
         resources: {
             ...state.resources,
-            lumeros: Lumeros(curCount + x)
+            lumeros: Types.Lumeros(curCount + x)
         }
     }
 }
 
-let addEvedamia = (state, Evedamia(x)) => {
-    let Evedamia(curCount) = state.resources.evedamia
+let addEvedamia = (state, Types.Evedamia(x)) => {
+    let Types.Evedamia(curCount) = state.resources.evedamia
 
     {
         ...state,
         resources: {
             ...state.resources,
-            evedamia: Evedamia(curCount + x)
+            evedamia: Types.Evedamia(curCount + x)
         }
     }
 }
 
-let addMoxalin = (state, Moxalin(x)) => {
-    let Moxalin(curCount) = state.resources.moxalin
+let addMoxalin = (state, Types.Moxalin(x)) => {
+    let Types.Moxalin(curCount) = state.resources.moxalin
 
     {
         ...state,
         resources: {
             ...state.resources,
-            moxalin: Moxalin(curCount + x)
+            moxalin: Types.Moxalin(curCount + x)
         }
     }
 }
@@ -70,40 +72,41 @@ let showErrorToClientSE = (error) => {
     Js.log(error) // TODO: send error to client
 }
 
-let make = (gameFlow, PlayerId(pId)) => spawn(~name=pId, gameFlow, async (state, msg:msg, _) =>
+let make = (gameFlow, Types.PlayerId(pId)) => spawn(~name=pId, gameFlow, async (state, msg:msg, _) =>
     switch msg {
         | #ReceiveLumeros(l) => state->addLumeros(l)
         | #ReceiveEvedamia(e) => state->addEvedamia(e)
         | #ReceiveMoxalin(m) => state->addMoxalin(m)
 
-        | #GiveLumeros(Lumeros(l), Reply(replyTo)) => {
-            let realL = Lumeros(l * -1)
+        | #GiveLumeros(Types.Lumeros(l), agent) => {
+            let realL = Types.Lumeros(l * -1)
             if state->validateLumerosUpd(realL) {
-                replyTo(Ok(Lumeros(l)))
+                agent->dispatch(Ok(Lumeros(l)))
                 state->addLumeros(realL)
             } else {
                 showErrorToClientSE(InsufficientLumerosError)
+                agent->dispatch(Error("Not enough resources"))
                 state
             }
         }
-        | #GiveEvedamia(Evedamia(e), Reply(replyTo)) => {
-            let realE = Evedamia(e * -1)
+        | #GiveEvedamia(Types.Evedamia(e), agent) => {
+            let realE = Types.Evedamia(e * -1)
             if state->validateEvedamiaUpd(realE) {
-                replyTo(Ok(Evedamia(e)))
+                agent->dispatch(Ok(Evedamia(e)))
                 state->addEvedamia(realE)
             } else {
-                replyTo(Error(NotEnoughResources))
+                agent->dispatch(Error(NotEnoughResources))
                 showErrorToClientSE(InsufficientEvedamiaError)
                 state
             }
         }
-        | #GiveMoxalin(Moxalin(m), Reply(replyTo)) => {
-            let realM = Moxalin(m * -1)
+        | #GiveMoxalin(Types.Moxalin(m), agent) => {
+            let realM = Types.Moxalin(m * -1)
             if state->validateMoxalinUpd(realM) {
-                replyTo(Ok(Moxalin(m)))
+                agent->dispatch(Ok(Moxalin(m)))
                 state->addMoxalin(realM)
             } else {
-                replyTo(Error(NotEnoughResources))
+                agent->dispatch(Error(NotEnoughResources))
                 showErrorToClientSE(InsufficientMoxalinError)
                 state
             }
@@ -117,7 +120,7 @@ let make = (gameFlow, PlayerId(pId)) => spawn(~name=pId, gameFlow, async (state,
                     state
                 }
                 | Some(debt) => {
-                    let Lumeros(debtL) = debt.lumeros
+                    let Types.Lumeros(debtL) = debt.lumeros
                 
                     let newDebt = {...debt, lumeros: Lumeros(debtL + l)}
                     state.debts->Map.set(playerId, newDebt)
@@ -132,10 +135,10 @@ let make = (gameFlow, PlayerId(pId)) => spawn(~name=pId, gameFlow, async (state,
                     state
                 }
                 | Some(debt) => {
-                    let Lumeros(debtL) = debt
-                    let Lumeros(newDebtL) = lumeros
+                    let Types.Lumeros(debtL) = debt
+                    let Types.Lumeros(newDebtL) = lumeros
                 
-                    let newDebt = Lumeros(debtL + newDebtL)
+                    let newDebt = Types.Lumeros(debtL + newDebtL)
                     state.dealersDepts->Map.set(dealerId, newDebt)
                     state
                 }
@@ -150,7 +153,7 @@ let make = (gameFlow, PlayerId(pId)) => spawn(~name=pId, gameFlow, async (state,
                     state
                 }
                 | Some(debt) => {
-                    let Evedamia(debtE) = debt.evedamia
+                    let Types.Evedamia(debtE) = debt.evedamia
                 
                     let newDebt = {...debt, evedamia: Evedamia(debtE + e)}
                     state.debts->Map.set(playerId, newDebt)
@@ -167,7 +170,7 @@ let make = (gameFlow, PlayerId(pId)) => spawn(~name=pId, gameFlow, async (state,
                     state
                 }
                 | Some(debt) => {
-                    let Moxalin(debtM) = debt.moxalin
+                    let Types.Moxalin(debtM) = debt.moxalin
                 
                     let newDebt = {...debt, moxalin: Moxalin(debtM + m)}
                     state.debts->Map.set(playerId, newDebt)
@@ -175,6 +178,7 @@ let make = (gameFlow, PlayerId(pId)) => spawn(~name=pId, gameFlow, async (state,
                 }
             }
         }
+
         | #SicarioBetrayed(sicarioId) => {
             Js.log(`Sicario ${sicarioId} betrayed`)
             state

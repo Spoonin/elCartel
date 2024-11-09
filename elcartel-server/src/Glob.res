@@ -1,28 +1,9 @@
-type playerId = PlayerId(string)
-type cellId = { x:int, y:int }
+open Nact
 
-type currentSpeed = Speed(float)
-type time = Time(float)
-
-type moveDirection = 
-    | Up
-    | Down
-    | Left
-    | Right
-
-type error = 
-| NotEnoughResources
-
-type evedamia = Evedamia(int)
-type moxalin = Moxalin(int)
-type lumeros = Lumeros(int)
-
-type duration = Duration(int)
-
-type reply<'a> = Reply('a => unit)
+let query100 = (receiver, agent) => query(~timeout=100, receiver, agent)
 
 let runPreparation = (duration, cb: () => unit) => {
-    let Duration(x) = duration
+    let Types.Duration(x) = duration
 
     Js.Global.setTimeout(cb, x)->ignore
 }

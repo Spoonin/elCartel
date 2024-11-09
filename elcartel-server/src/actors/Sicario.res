@@ -1,8 +1,6 @@
 open Nact
-open Glob
-open Cell
 
-let salary = Lumeros(10)
+let salary = Types.Lumeros(10)
 let salaryEvery = 2 * minute
 let considerBetrayalEvery = 5 * minute
 let getBurriedTime = 5 * second
@@ -11,27 +9,23 @@ let betrayThreshold = 0.7
 type sicario = {
     name: string,
     salariesCount: int,
-    guardingCell: option<cell>,
+    guardingCell: option<Cell.cell>,
     hapinness: float,
     dead: bool,
+    patron: option<actorRef<Player.msg>>
 }
-
-type msg =
-| RecallPayDay
-| ConsiderBetrayal
-| SalaryGiven
-| SalaryMissed
-| Die
 
 let ariphmeticHapinessDecrement = (curHapiness: float) => 1.0 -. curHapiness > 0.0 ? 
 1.0 -. curHapiness > 0.5 ? 0.2 : 1.0 -. curHapiness :
 0.1
 
-let recallPayDay = (state, patron: actorRef<Player.msg>, self) => {
-    patron->dispatch(#GiveLumeros(salary, Reply((result) => switch result {
-    | Ok(_) =>  self->dispatch(SalaryGiven) // Buy some tequila!
-    | Error(NotEnoughResources) => self->dispatch(SalaryMissed)
-    })))
+let recallPayDay = async (state, patron: actorRef<Player.msg>, self) => {
+    let result = await Glob.query100(patron, (agent) => { #GiveLumeros(salary, agent) })
+    
+    switch result {
+    | Ok(_) =>  self->dispatch(Types.SalaryGiven) // Buy some tequila!
+    | Error(_) => self->dispatch(SalaryMissed)
+    }
 
     {
         ...state,
@@ -39,23 +33,33 @@ let recallPayDay = (state, patron: actorRef<Player.msg>, self) => {
     }
 }
 
-let considerBetrayal = (state, patron, self) => {
+let considerBetrayal = (state, patron) => {
     if Js.Math.random() *. 1.0 -. state.hapinness > betrayThreshold {
         patron->dispatch(#SicarioBetrayed(state.name))
-        stop(self)
+        {
+            ...state,
+            patron: None,
+            guardingCell: None
+        }
+    } else {
+        state
     }
-    state
 }
 
-let make = (patron: actorRef<Messages.playerMsg>, name, originCell) => {
-    let self = spawn(~name=name, patron, async (state: sicario, msg, ctx) => 
+let make = (name, game) => {
+    let self = spawn(~name=name, game, async (state: sicario, msg: Types.sicarioMsg, ctx) => 
     switch msg {
     | RecallPayDay => {
-        runPreparation(Duration(salaryEvery), () => ctx.self->dispatch(RecallPayDay))
-        state->recallPayDay(patron, ctx.self)
+        switch state.patron {
+            | Some(patron) => {
+                Glob.runPreparation(Duration(salaryEvery), () => ctx.self->dispatch(RecallPayDay))
+                await state->recallPayDay(patron, ctx.self)
+            }
+            | None => state
+        }
     }
     | Die => {
-        runPreparation(Duration(getBurriedTime), () => stop(ctx.self))
+        Glob.runPreparation(Duration(getBurriedTime), () => stop(ctx.self))
         {
             ...state,
             dead: true
@@ -69,8 +73,13 @@ let make = (patron: actorRef<Messages.playerMsg>, name, originCell) => {
         }
     }
     | ConsiderBetrayal => {
-        runPreparation(Duration(considerBetrayalEvery), () => ctx.self->dispatch(ConsiderBetrayal))
-        considerBetrayal(state, patron, ctx.self)
+        switch state.patron {
+        | Some(patron) => {
+            Glob.runPreparation(Duration(considerBetrayalEvery), () => ctx.self->dispatch(ConsiderBetrayal))
+            considerBetrayal(state, patron)
+        }
+        | None => state
+        }
     }
     | SalaryGiven => {
         let updHapiness = state.hapinness +. 0.5
@@ -81,10 +90,11 @@ let make = (patron: actorRef<Messages.playerMsg>, name, originCell) => {
     }},
      _ => {
         name,
-        guardingCell: Some(originCell),
+        guardingCell: None,
         salariesCount: 0,
         hapinness: 1.0,
-        dead: false
+        dead: false,
+        patron: None
         }
     )
 
